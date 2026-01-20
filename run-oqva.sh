@@ -65,35 +65,54 @@ function print_header() {
     echo "--------------------------------------------"
 }
 
-# --- Install: prepare .env, apps/api/.env, SECRET_KEY; then build
+# Copy .env.example to .env only when .env is missing (like setup.sh; we skip if .env exists to avoid overwriting WEB_URL, TUNNEL_TOKEN, etc.)
+function copy_env_if_missing() {
+    local src=$1
+    local dest=$2
+    if [ -f "$dest" ]; then
+        return 0
+    fi
+    if [ ! -f "$src" ]; then
+        echo "Error: $src not found"
+        return 1
+    fi
+    cp "$src" "$dest"
+    echo "Created $dest from $src"
+    return 0
+}
+
+# --- Install: copy .env from .env.example for root, web, api, space, admin, live (like setup.sh); SECRET_KEY; then build
 function install_oqva() {
     echo "Install: prepare env and build images from local code."
     echo ""
 
+    # Root .env: .env.example if exists, else deployments/cli/community/variables.env
     if [ ! -f "$DOCKER_ENV_PATH" ]; then
-        if [ -f "$SCRIPT_DIR/deployments/cli/community/variables.env" ]; then
+        if [ -f "$SCRIPT_DIR/.env.example" ]; then
+            cp "$SCRIPT_DIR/.env.example" "$DOCKER_ENV_PATH"
+            echo "Created .env from .env.example"
+        elif [ -f "$SCRIPT_DIR/deployments/cli/community/variables.env" ]; then
             cp "$SCRIPT_DIR/deployments/cli/community/variables.env" "$DOCKER_ENV_PATH"
             echo "Created .env from deployments/cli/community/variables.env"
         else
-            echo "Error: .env not found and deployments/cli/community/variables.env is missing. Create .env first."
+            echo "Error: .env not found; need .env.example or deployments/cli/community/variables.env"
             exit 1
         fi
     fi
 
-    if [ ! -f "$SCRIPT_DIR/apps/api/.env" ]; then
-        if [ -f "$SCRIPT_DIR/apps/api/.env.example" ]; then
-            cp "$SCRIPT_DIR/apps/api/.env.example" "$SCRIPT_DIR/apps/api/.env"
-            echo "Created apps/api/.env from apps/api/.env.example"
-        else
-            echo "Error: apps/api/.env not found and apps/api/.env.example is missing."
-            exit 1
-        fi
-    fi
+    # apps: web, api, space, admin, live — same list as setup.sh
+    for svc in web api space admin live; do
+        copy_env_if_missing "$SCRIPT_DIR/apps/$svc/.env.example" "$SCRIPT_DIR/apps/$svc/.env" || exit 1
+    done
 
-    local sec=$(getEnvValue "SECRET_KEY" "$SCRIPT_DIR/apps/api/.env")
-    if [ -z "$sec" ]; then
-        updateEnvFile "SECRET_KEY" "$(openssl rand -hex 32)" "$SCRIPT_DIR/apps/api/.env"
-        echo "Generated SECRET_KEY in apps/api/.env"
+    # SECRET_KEY for apps/api/.env (required by API)
+    if [ -f "$SCRIPT_DIR/apps/api/.env" ]; then
+        local sec
+        sec=$(getEnvValue "SECRET_KEY" "$SCRIPT_DIR/apps/api/.env")
+        if [ -z "$sec" ]; then
+            updateEnvFile "SECRET_KEY" "$(openssl rand -hex 32)" "$SCRIPT_DIR/apps/api/.env"
+            echo "Generated SECRET_KEY in apps/api/.env"
+        fi
     fi
 
     cd "$SCRIPT_DIR" || exit 1
