@@ -1,7 +1,7 @@
 import type { ChangeEvent } from "react";
 import type { UseFormSetValue } from "react-hook-form";
 import { Controller, useFormContext } from "react-hook-form";
-import { Info } from "lucide-react";
+import { InfoIcon } from "@plane/propel/icons";
 // plane imports
 import { ETabIndices } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
@@ -17,14 +17,13 @@ import type { TProject } from "@/plane-web/types/projects";
 type Props = {
   setValue: UseFormSetValue<TProject>;
   isMobile: boolean;
-  isChangeInIdentifierRequired: boolean;
-  setIsChangeInIdentifierRequired: (value: boolean) => void;
+  shouldAutoSyncIdentifier: boolean;
+  setShouldAutoSyncIdentifier: (value: boolean) => void;
   handleFormOnChange?: () => void;
 };
 
 function ProjectCommonAttributes(props: Props) {
-  const { setValue, isMobile, isChangeInIdentifierRequired, setIsChangeInIdentifierRequired, handleFormOnChange } =
-    props;
+  const { setValue, isMobile, shouldAutoSyncIdentifier, setShouldAutoSyncIdentifier, handleFormOnChange } = props;
   const {
     formState: { errors },
     control,
@@ -33,21 +32,22 @@ function ProjectCommonAttributes(props: Props) {
   const { getIndex } = getTabIndex(ETabIndices.PROJECT_CREATE, isMobile);
   const { t } = useTranslation();
 
-  const handleNameChange = (onChange: (...event: any[]) => void) => (e: ChangeEvent<HTMLInputElement>) => {
-    if (!isChangeInIdentifierRequired) {
+  const handleNameChange =
+    (onChange: (event: ChangeEvent<HTMLInputElement>) => void) => (e: ChangeEvent<HTMLInputElement>) => {
+      if (!shouldAutoSyncIdentifier) {
+        onChange(e);
+        return;
+      }
+      if (e.target.value === "") setValue("identifier", "");
+      else setValue("identifier", projectIdentifierSanitizer(e.target.value).substring(0, 10));
       onChange(e);
-      return;
-    }
-    if (e.target.value === "") setValue("identifier", "");
-    else setValue("identifier", projectIdentifierSanitizer(e.target.value).substring(0, 10));
-    onChange(e);
-    handleFormOnChange?.();
-  };
+      handleFormOnChange?.();
+    };
 
-  const handleIdentifierChange = (onChange: any) => (e: ChangeEvent<HTMLInputElement>) => {
+  const handleIdentifierChange = (onChange: (value: string) => void) => (e: ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target;
     const alphanumericValue = projectIdentifierSanitizer(value);
-    setIsChangeInIdentifierRequired(false);
+    setShouldAutoSyncIdentifier(false);
     onChange(alphanumericValue);
     handleFormOnChange?.();
   };
@@ -78,7 +78,7 @@ function ProjectCommonAttributes(props: Props) {
             />
           )}
         />
-        <span className="text-xs text-red-500">{errors?.name?.message}</span>
+        <span className="text-11 text-danger-primary">{errors?.name?.message}</span>
       </div>
       <div className="relative">
         <Controller
@@ -107,7 +107,7 @@ function ProjectCommonAttributes(props: Props) {
               onChange={handleIdentifierChange(onChange)}
               hasError={Boolean(errors.identifier)}
               placeholder={t("project_id")}
-              className={cn("w-full text-xs focus:border-blue-400 pr-7", {
+              className={cn("w-full text-11 focus:border-blue-400 pr-7", {
                 uppercase: value,
               })}
               tabIndex={getIndex("identifier")}
@@ -117,12 +117,12 @@ function ProjectCommonAttributes(props: Props) {
         <Tooltip
           isMobile={isMobile}
           tooltipContent={t("project_id_tooltip_content")}
-          className="text-sm"
+          className="text-13"
           position="right-start"
         >
-          <Info className="absolute right-2 top-2.5 h-3 w-3 text-custom-text-400" />
+          <InfoIcon className="absolute right-2 top-2.5 h-3 w-3 text-placeholder" />
         </Tooltip>
-        <span className="text-xs text-red-500">{errors?.identifier?.message}</span>
+        <span className="text-11 text-danger-primary">{errors?.identifier?.message}</span>
       </div>
       <div className="md:col-span-4">
         <Controller
@@ -138,7 +138,7 @@ function ProjectCommonAttributes(props: Props) {
                 onChange(e);
                 handleFormOnChange?.();
               }}
-              className="!h-24 text-sm focus:border-blue-400"
+              className="!h-24 text-13 focus:border-blue-400"
               hasError={Boolean(errors?.description)}
               tabIndex={getIndex("description")}
             />

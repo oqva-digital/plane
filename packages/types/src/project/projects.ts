@@ -51,6 +51,7 @@ export interface IProject extends IPartialProject {
   is_favorite?: boolean;
   members?: string[];
   timezone?: string;
+  next_work_item_sequence?: number;
 }
 
 export type TProjectAnalyticsCountParams = {
@@ -72,12 +73,6 @@ export interface IProjectLite {
   identifier: string;
   logo_props: TLogoProps;
 }
-
-export type ProjectPreferences = {
-  pages: {
-    block_display: boolean;
-  };
-};
 
 export interface IProjectMap {
   [id: string]: IProject;
