@@ -19,13 +19,17 @@ fi
 function getEnvValue() {
     local key=$1
     local file=$2
+    local val
     if [ -z "$key" ] || [ -z "$file" ]; then
         echo "Invalid arguments supplied"
         exit 1
     fi
     if [ -f "$file" ]; then
         if grep -q "^$key=" "$file"; then
-            grep "^$key=" "$file" | cut -d'=' -f2
+            val=$(grep "^$key=" "$file" | cut -d'=' -f2-)
+            # strip surrounding double or single quotes (e.g. "plane" or 'plane')
+            val=$(echo "$val" | sed 's/^["'"'"']//; s/["'"'"']$//')
+            echo "$val"
         else
             echo ""
         fi
@@ -340,8 +344,9 @@ function backup_db_pg_dump() {
         return 1
     fi
     echo "Backing up database (pg_dump)..."
-    if ! docker exec -e PGPASSWORD="$ppw" "$cid" pg_dump -U "$pu" -d "$pdb" -F c -f /tmp/plane_db.dump 2>/dev/null; then
-        echo "Error: pg_dump failed"
+    if ! docker exec -e PGPASSWORD="$ppw" "$cid" pg_dump -U "$pu" -d "$pdb" -F c -f /tmp/plane_db.dump; then
+        echo "Error: pg_dump failed. Check: POSTGRES_USER, POSTGRES_DB, POSTGRES_PASSWORD in .env (root); plane-db running. Run manually to see the exact error:"
+        echo "  docker exec -e PGPASSWORD='...' plane-db pg_dump -U $pu -d $pdb -F c -f /tmp/plane_db.dump"
         return 1
     fi
     if ! docker cp "$cid:/tmp/plane_db.dump" "$backup_dir/plane_db.dump"; then
