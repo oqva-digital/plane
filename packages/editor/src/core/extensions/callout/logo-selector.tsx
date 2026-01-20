@@ -33,12 +33,12 @@ export function CalloutBlockLogoSelector(props: Props) {
   return (
     <div contentEditable={false}>
       <EmojiPicker
-        closeOnSelect={false}
+        closeOnSelect={true}
         isOpen={isOpen}
         handleToggle={handleOpen}
         className="flex-shrink-0 grid place-items-center"
-        buttonClassName={cn("flex-shrink-0 size-8 grid place-items-center rounded-lg", {
-          "hover:bg-white/10": !disabled,
+        buttonClassName={cn("flex-shrink-0 size-8 grid place-items-center rounded-lg text-primary", {
+          "hover:bg-layer-1-hover": !disabled,
         })}
         label={<Logo logo={logoValue} size={18} type="lucide" />}
         onChange={(val) => {

@@ -1,17 +1,14 @@
 # Python imports
 import json
 
-import boto3
 
 # Django imports
-from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Exists, F, OuterRef, Prefetch, Q, Subquery
 from django.utils import timezone
 
 # Third Party imports
 from rest_framework import status
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 # Module imports
@@ -27,19 +24,18 @@ from plane.bgtasks.webhook_task import model_activity, webhook_activity
 from plane.db.models import (
     UserFavorite,
     DeployBoard,
+    ProjectUserProperty,
     Intake,
-    IssueUserProperty,
     Project,
     ProjectIdentifier,
     ProjectMember,
     ProjectNetwork,
     State,
     DEFAULT_STATES,
+    UserFavorite,
     Workspace,
     WorkspaceMember,
 )
-from plane.utils.cache import cache_response
-from plane.utils.exception_logger import log_exception
 from plane.utils.host import base_host
 
 
@@ -255,8 +251,6 @@ class ProjectViewSet(BaseViewSet):
                 member=request.user,
                 role=ROLE.ADMIN.value,
             )
-            # Also create the issue property for the user
-            _ = IssueUserProperty.objects.create(project_id=serializer.data["id"], user=request.user)
 
             if serializer.data["project_lead"] is not None and str(serializer.data["project_lead"]) != str(
                 request.user.id
@@ -265,11 +259,6 @@ class ProjectViewSet(BaseViewSet):
                     project_id=serializer.data["id"],
                     member_id=serializer.data["project_lead"],
                     role=ROLE.ADMIN.value,
-                )
-                # Also create the issue property for the user
-                IssueUserProperty.objects.create(
-                    project_id=serializer.data["id"],
-                    user_id=serializer.data["project_lead"],
                 )
 
             State.objects.bulk_create(
