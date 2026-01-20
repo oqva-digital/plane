@@ -1,0 +1,16 @@
+# Cursor rules — OQVA Plane fork
+
+## Language
+
+- **Code and comments must be in English.** This includes:
+  - Inline and block comments
+  - Docstrings and JSDoc/TSDoc
+  - Commit messages (when editing from this environment)
+  - Variable, function, and type names (English, unless reflecting an external API or domain term)
+  - User-facing strings in OQVA-specific files (e.g. env.oqva.example, run-oqva.sh help text, README additions)
+
+- **Exception:** Existing upstream content in other languages (e.g. i18n, docs) may be left as-is when not modified.
+
+## OQVA-specific files
+
+- `docker-compose.oqva.yml`, `env.oqva.example`, `run-oqva.sh` and any new OQVA scripts or config: keep all comments and user-facing text in English.

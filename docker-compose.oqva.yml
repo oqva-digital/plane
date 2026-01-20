@@ -1,0 +1,71 @@
+# Override OQVA: use with
+#   docker compose -f docker-compose.yml -f docker-compose.oqva.yml [cmd]
+# Merges with docker-compose.yml; only additions and overrides here.
+
+services:
+  web:
+    build:
+      args:
+        VITE_API_BASE_URL: ${WEB_URL:-}
+        VITE_ADMIN_BASE_URL: ${WEB_URL:-}
+        VITE_SPACE_BASE_URL: ${WEB_URL:-}
+        VITE_LIVE_BASE_URL: ${WEB_URL:-}
+        VITE_WEB_BASE_URL: ${WEB_URL:-}
+
+  admin:
+    build:
+      args:
+        VITE_API_BASE_URL: ${WEB_URL:-}
+        VITE_ADMIN_BASE_URL: ${WEB_URL:-}
+        VITE_SPACE_BASE_URL: ${WEB_URL:-}
+        VITE_LIVE_BASE_URL: ${WEB_URL:-}
+        VITE_WEB_BASE_URL: ${WEB_URL:-}
+
+  space:
+    build:
+      args:
+        VITE_API_BASE_URL: ${WEB_URL:-}
+        VITE_ADMIN_BASE_URL: ${WEB_URL:-}
+        VITE_SPACE_BASE_URL: ${WEB_URL:-}
+        VITE_LIVE_BASE_URL: ${WEB_URL:-}
+        VITE_WEB_BASE_URL: ${WEB_URL:-}
+
+  live:
+    env_file:
+      - .env
+    environment:
+      API_BASE_URL: ${API_BASE_URL:-http://api:8000}
+      LIVE_SERVER_SECRET_KEY: ${LIVE_SERVER_SECRET_KEY}
+      REDIS_HOST: ${REDIS_HOST:-plane-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+    depends_on:
+      - api
+      - plane-redis
+
+  proxy:
+    environment:
+      FILE_SIZE_LIMIT: ${FILE_SIZE_LIMIT:-5242880}
+      BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+      CERT_EMAIL: ${CERT_EMAIL:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-0.0.0.0/0}
+    volumes:
+      - ./apps/proxy/Caddyfile.oqva.ce:/etc/caddy/Caddyfile
+    depends_on:
+      - web
+      - api
+      - space
+      - admin
+      - live
+
+  tunnel:
+    container_name: tunnel
+    image: cloudflare/cloudflared:latest
+    restart: always
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      - proxy
+    profiles:
+      - tunnel
