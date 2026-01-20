@@ -320,6 +320,55 @@ function backup_container_dir() {
     echo "Backed up $tar_name"
 }
 
+# PostgreSQL logical backup (pg_dump). Restore with: gunzip -c plane_db.dump.gz | docker exec -i plane-db pg_restore -U $POSTGRES_USER -d $POSTGRES_DB --clean --if-exists
+function backup_db_pg_dump() {
+    local backup_dir=$1
+    local pu pdb ppw cid
+    pu=$(getEnvValue "POSTGRES_USER" "$DOCKER_ENV_PATH")
+    pdb=$(getEnvValue "POSTGRES_DB" "$DOCKER_ENV_PATH")
+    ppw=$(getEnvValue "POSTGRES_PASSWORD" "$DOCKER_ENV_PATH")
+    if [ -z "$pu" ] || [ -z "$pdb" ]; then
+        echo "Error: POSTGRES_USER and POSTGRES_DB must be set in .env"
+        return 1
+    fi
+    cid=$(/bin/bash -c "$COMPOSE_CMD $COMPOSE_FILES --env-file=$DOCKER_ENV_PATH ps -q plane-db" 2>/dev/null)
+    if [ -z "$cid" ]; then
+        cid=$(docker ps -q -f "name=^plane-db$" 2>/dev/null | head -1)
+    fi
+    if [ -z "$cid" ]; then
+        echo "Error: plane-db container not found. Is it running?"
+        return 1
+    fi
+    echo "Backing up database (pg_dump)..."
+    if ! docker exec -e PGPASSWORD="$ppw" "$cid" pg_dump -U "$pu" -d "$pdb" -F c -f /tmp/plane_db.dump 2>/dev/null; then
+        echo "Error: pg_dump failed"
+        return 1
+    fi
+    if ! docker cp "$cid:/tmp/plane_db.dump" "$backup_dir/plane_db.dump"; then
+        docker exec "$cid" rm -f /tmp/plane_db.dump 2>/dev/null
+        echo "Error: failed to copy dump from container"
+        return 1
+    fi
+    docker exec "$cid" rm -f /tmp/plane_db.dump 2>/dev/null
+    gzip -f "$backup_dir/plane_db.dump" && echo "Backed up plane_db.dump.gz"
+}
+
+function backupDbOnly() {
+    local dt
+    dt=$(date +"%Y%m%d-%H%M")
+    local backup_dir="$SCRIPT_DIR/backup/$dt"
+    mkdir -p "$backup_dir"
+    cd "$SCRIPT_DIR" || exit 1
+    if [ ! -f "$SCRIPT_DIR/docker-compose.yml" ] || [ ! -f "$SCRIPT_DIR/docker-compose.oqva.yml" ]; then
+        echo "Error: docker-compose files not found."
+        exit 1
+    fi
+    backup_db_pg_dump "$backup_dir" || exit 1
+    echo ""
+    echo "Backup done: $backup_dir/plane_db.dump.gz"
+    echo ""
+}
+
 function backupData() {
     local dt
     dt=$(date +"%Y%m%d-%H%M")
@@ -332,7 +381,7 @@ function backupData() {
         exit 1
     fi
 
-    backup_container_dir "$backup_dir" "plane-db"    "/var/lib/postgresql/data" "pgdata"      || exit 1
+    backup_db_pg_dump "$backup_dir" || exit 1
     backup_container_dir "$backup_dir" "plane-minio" "/export"                   "uploads"     || exit 1
     backup_container_dir "$backup_dir" "plane-mq"    "/var/lib/rabbitmq"         "rabbitmq_data" || exit 1
     backup_container_dir "$backup_dir" "plane-redis" "/data"                     "redisdata"   || exit 1
@@ -350,21 +399,22 @@ function askForAction() {
         action=$default
     else
         echo ""
-        echo "Actions: 1) Install  2) Start  3) Stop  4) Restart  5) Upgrade  6) Logs  7) Backup  8) Exit"
+        echo "Actions: 1) Install  2) Start  3) Stop  4) Restart  5) Upgrade  6) Logs  7) Backup  8) Backup DB  9) Exit"
         read -p "Choice [2]: " action
         action=${action:-2}
     fi
 
     case $action in
-        1|install)   install_oqva;;
-        2|start)     startServices;;
-        3|stop)      stopServices;;
-        4|restart)   restartServices;;
-        5|upgrade)   upgrade_oqva;;
-        6|logs)      viewLogs "$@"; [ -z "$default" ] && askForAction;;
-        7|backup)    backupData;;
-        8|exit)      exit 0;;
-        *)           echo "Invalid action."
+        1|install)     install_oqva;;
+        2|start)       startServices;;
+        3|stop)        stopServices;;
+        4|restart)     restartServices;;
+        5|upgrade)     upgrade_oqva;;
+        6|logs)        viewLogs "$@"; [ -z "$default" ] && askForAction;;
+        7|backup)      backupData;;
+        8|backup-db)   backupDbOnly;;
+        9|exit)        exit 0;;
+        *)             echo "Invalid action."
     esac
 }
 

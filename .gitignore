@@ -41,6 +41,9 @@ pnpm-debug.log*
 .env.test.local
 .env.production.local
 
+# Backups (run-oqva.sh: plane_db.dump.gz, uploads, redis, rabbitmq)
+backup/
+
 # Vercel
 .vercel
 

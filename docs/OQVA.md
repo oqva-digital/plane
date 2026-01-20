@@ -53,7 +53,28 @@
    | `./run-oqva.sh stop` | Stops all services. |
    | `./run-oqva.sh upgrade` | `git pull`, rebuild, and `up -d`. |
    | `./run-oqva.sh logs [service]` | `docker compose logs` (optionally for one service). |
-   | `./run-oqva.sh backup` | Backs up `pgdata`, `redisdata`, `uploads` (or equivalent). |
+   | `./run-oqva.sh backup` | Full backup: `plane_db.dump.gz` (pg_dump), `uploads`, `rabbitmq_data`, `redisdata` → `backup/YYYYMMDD-HHMM/`. |
+   | `./run-oqva.sh backup-db` | DB only: `plane_db.dump.gz` (pg_dump) → `backup/YYYYMMDD-HHMM/`. |
+
+   **Backup and restore**
+   - **Full backup** (`./run-oqva.sh backup` or `7`): `plane_db.dump.gz` (PostgreSQL via pg_dump), `uploads.tar.gz` (Minio), `rabbitmq_data.tar.gz`, `redisdata.tar.gz`. Requires `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD` in `.env`.
+   - **DB only** (`./run-oqva.sh backup-db` or `8`): only `plane_db.dump.gz`. Useful for frequent DB-only backups or cron.
+   - **Restore DB** from `plane_db.dump.gz`:
+     ```bash
+     # Recommended: stop the app first to avoid active DB connections.
+     ./run-oqva.sh stop
+     # Start only plane-db so we can restore: docker compose -f docker-compose.yml -f docker-compose.oqva.yml --env-file .env up -d plane-db
+     # Wait a few seconds, then restore (source .env for POSTGRES_*):
+     gunzip -c backup/YYYYMMDD-HHMM/plane_db.dump.gz | docker exec -i plane-db pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner --no-acl
+     # Start again
+     ./run-oqva.sh start
+     ```
+     To restore into an **empty** DB (e.g. new instance): `gunzip -c backup/.../plane_db.dump.gz | docker exec -i plane-db pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-acl`
+   - **Cron (e.g. daily DB backup at 3:00):**
+     ```bash
+     0 3 * * * cd /opt/plane && ./run-oqva.sh backup-db
+     ```
+     Or full backup: `0 3 * * * cd /opt/plane && ./run-oqva.sh backup`. Keep or rotate `backup/` (e.g. `find /opt/plane/backup -mtime +7 -delete`).
 
    Rebuild frontends after changing `WEB_URL`:
 
