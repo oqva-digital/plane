@@ -332,6 +332,8 @@ OpenAPI (if `ENABLE_DRF_SPECTACULAR=1`):
 
 ### Syncing the fork with upstream
 
+**Frequency:** sync with upstream **on each release** (e.g. when makeplane/plane publishes a new tag or release). Avoid long drift to reduce merge conflicts.
+
 ```bash
 git remote add upstream https://github.com/makeplane/plane.git   # if not already
 git fetch upstream
@@ -470,3 +472,32 @@ Ensure `WEB_URL` (and, if using the OQVA override, `VITE_*`) are set in `.env` b
 - **Env and compose:** keep customizations in **override** files (`docker-compose.oqva.yml`, `Caddyfile.oqva.ce`, `env.oqva.example`) and scripts (`run-oqva.sh`) so `docker-compose.yml`, `Caddyfile.ce`, and `variables.env` stay merge-friendly.
 - **Migrations:** never edit existing migration files; only add new ones. After merging upstream, run `makemigrations` and `migrate` in a staging environment first.
 - **i18n:** if you add user-facing strings, add keys under `packages/i18n` (or the app’s locale files) so upstream i18n merges do not conflict heavily.
+
+---
+
+## 4.5 Commit conventions
+
+Use **Conventional Commits** (https://www.conventionalcommits.org/):
+
+```
+<type>[(<scope>)]: <description>
+
+[optional body]
+
+[optional footer]
+```
+
+- **Types:** `feat` (feature), `fix` (bug fix), `docs`, `chore`, `refactor`, `style`, `test`, `perf`, `ci`, `build`.
+- **Scope (optional):** e.g. `web`, `api`, `run-oqva`, `proxy`.
+- **Description:** imperative, lowercase start; no period at the end.
+- **Body / footer:** when useful (e.g. `BREAKING CHANGE:`, `Refs #123`).
+
+**Examples:**
+
+```
+feat(web): add maintenance banner in top nav
+fix(api): strip quotes from getEnvValue for POSTGRES_USER
+docs(oqva): document backup restore and clean restore
+chore(run-oqva): add backup-db to menu
+refactor(admin): inline basePath in vite.config to avoid @plane/utils at load
+```
