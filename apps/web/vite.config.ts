@@ -33,6 +33,7 @@ export default defineConfig(() => ({
   },
   server: {
     host: "127.0.0.1",
+    watch: { usePolling: process.env.CHOKIDAR_USEPOLLING === "1" },
   },
   // No SSR-specific overrides needed; alias resolves to ESM build
 }));
