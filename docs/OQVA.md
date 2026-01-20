@@ -127,7 +127,7 @@ If you are not using `run-oqva.sh` or `docker-compose.oqva.yml`:
 
 ### Local development (pnpm dev + Docker backend)
 
-When you run the **frontend** with `pnpm dev` (web, admin, space on the host), the apps call the API at `http://localhost:8000`. The **backend and infra** run via `docker-compose-local.yml`; the frontend runs on the host for hot reload.
+Do development on the **develop** branch (see 4.3 Branch model). When you run the **frontend** with `pnpm dev` (web, admin, space on the host), the apps call the API at `http://localhost:8000`. The **backend and infra** run via `docker-compose-local.yml`; the frontend runs on the host for hot reload.
 
 #### Step 1 — Root `.env`
 
@@ -330,11 +330,24 @@ OpenAPI (if `ENABLE_DRF_SPECTACULAR=1`):
 
 ## 4.3 Updates
 
+### Branch model
+
+| Branch         | Role                                                                                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **master**     | Copy of the forked upstream (makeplane/plane). Kept in sync with upstream via merge; minimal or no OQVA-specific commits so upstream merges stay clean. |
+| **develop**    | Development branch. Do feature work, OQVA customizations, and day-to-day development here.                                                              |
+| **production** | Branch that is **deployed and runs** in production. Clone with `-b production`; `run-oqva.sh` and deploys use this branch.                              |
+
+Typical flow: merge upstream into **master**; merge **master** into **develop**; when ready to release, merge **develop** into **production** and deploy.
+
 ### Syncing the fork with upstream
 
 **Frequency:** sync with upstream **on each release** (e.g. when makeplane/plane publishes a new tag or release). Avoid long drift to reduce merge conflicts.
 
+Merge upstream into **master** (from the branch model above):
+
 ```bash
+git checkout master
 git remote add upstream https://github.com/makeplane/plane.git   # if not already
 git fetch upstream
 git merge upstream/preview
@@ -350,7 +363,7 @@ git merge upstream/preview
   docker compose -f docker-compose.yml --env-file .env up -d
   ```
 
-Rebase is an alternative to merge; keep a clear policy (e.g. `upstream/preview` into your `master`) so history stays manageable.
+Rebase is an alternative to merge; in all cases merge upstream into `master` first, then `master` into `develop`, so history stays manageable.
 
 ### Testing updates in staging
 
