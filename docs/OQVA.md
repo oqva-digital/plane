@@ -53,7 +53,28 @@
    | `./run-oqva.sh stop` | Stops all services. |
    | `./run-oqva.sh upgrade` | `git pull`, rebuild, and `up -d`. |
    | `./run-oqva.sh logs [service]` | `docker compose logs` (optionally for one service). |
-   | `./run-oqva.sh backup` | Backs up `pgdata`, `redisdata`, `uploads` (or equivalent). |
+   | `./run-oqva.sh backup` | Full backup: `plane_db.dump.gz` (pg_dump), `uploads`, `rabbitmq_data`, `redisdata` → `backup/YYYYMMDD-HHMM/`. |
+   | `./run-oqva.sh backup-db` | DB only: `plane_db.dump.gz` (pg_dump) → `backup/YYYYMMDD-HHMM/`. |
+
+   **Backup and restore**
+   - **Full backup** (`./run-oqva.sh backup` or `7`): `plane_db.dump.gz` (PostgreSQL via pg_dump), `uploads.tar.gz` (Minio), `rabbitmq_data.tar.gz`, `redisdata.tar.gz`. Requires `POSTGRES_USER`, `POSTGRES_DB`, `POSTGRES_PASSWORD` in `.env`.
+   - **DB only** (`./run-oqva.sh backup-db` or `8`): only `plane_db.dump.gz`. Useful for frequent DB-only backups or cron.
+   - **Restore DB** from `plane_db.dump.gz`:
+     ```bash
+     # Recommended: stop the app first to avoid active DB connections.
+     ./run-oqva.sh stop
+     # Start only plane-db so we can restore: docker compose -f docker-compose.yml -f docker-compose.oqva.yml --env-file .env up -d plane-db
+     # Wait a few seconds, then restore (source .env for POSTGRES_*):
+     gunzip -c backup/YYYYMMDD-HHMM/plane_db.dump.gz | docker exec -i plane-db pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner --no-acl
+     # Start again
+     ./run-oqva.sh start
+     ```
+     To restore into an **empty** DB (e.g. new instance): `gunzip -c backup/.../plane_db.dump.gz | docker exec -i plane-db pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-acl`
+   - **Cron (e.g. daily DB backup at 3:00):**
+     ```bash
+     0 3 * * * cd /opt/plane && ./run-oqva.sh backup-db
+     ```
+     Or full backup: `0 3 * * * cd /opt/plane && ./run-oqva.sh backup`. Keep or rotate `backup/` (e.g. `find /opt/plane/backup -mtime +7 -delete`).
 
    Rebuild frontends after changing `WEB_URL`:
 
@@ -106,7 +127,7 @@ If you are not using `run-oqva.sh` or `docker-compose.oqva.yml`:
 
 ### Local development (pnpm dev + Docker backend)
 
-When you run the **frontend** with `pnpm dev` (web, admin, space on the host), the apps call the API at `http://localhost:8000`. The **backend and infra** run via `docker-compose-local.yml`; the frontend runs on the host for hot reload.
+Do development on the **develop** branch (see 4.3 Branch model). When you run the **frontend** with `pnpm dev` (web, admin, space on the host), the apps call the API at `http://localhost:8000`. The **backend and infra** run via `docker-compose-local.yml`; the frontend runs on the host for hot reload.
 
 #### Step 1 — Root `.env`
 
@@ -309,9 +330,24 @@ OpenAPI (if `ENABLE_DRF_SPECTACULAR=1`):
 
 ## 4.3 Updates
 
+### Branch model
+
+| Branch         | Role                                                                                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **master**     | Copy of the forked upstream (makeplane/plane). Kept in sync with upstream via merge; minimal or no OQVA-specific commits so upstream merges stay clean. |
+| **develop**    | Development branch. Do feature work, OQVA customizations, and day-to-day development here.                                                              |
+| **production** | Branch that is **deployed and runs** in production. Clone with `-b production`; `run-oqva.sh` and deploys use this branch.                              |
+
+Typical flow: merge upstream into **master**; merge **master** into **develop**; when ready to release, merge **develop** into **production** and deploy.
+
 ### Syncing the fork with upstream
 
+**Frequency:** sync with upstream **on each release** (e.g. when makeplane/plane publishes a new tag or release). Avoid long drift to reduce merge conflicts.
+
+Merge upstream into **master** (from the branch model above):
+
 ```bash
+git checkout master
 git remote add upstream https://github.com/makeplane/plane.git   # if not already
 git fetch upstream
 git merge upstream/preview
@@ -327,7 +363,7 @@ git merge upstream/preview
   docker compose -f docker-compose.yml --env-file .env up -d
   ```
 
-Rebase is an alternative to merge; keep a clear policy (e.g. `upstream/preview` into your `master`) so history stays manageable.
+Rebase is an alternative to merge; in all cases merge upstream into `master` first, then `master` into `develop`, so history stays manageable.
 
 ### Testing updates in staging
 
@@ -449,3 +485,32 @@ Ensure `WEB_URL` (and, if using the OQVA override, `VITE_*`) are set in `.env` b
 - **Env and compose:** keep customizations in **override** files (`docker-compose.oqva.yml`, `Caddyfile.oqva.ce`, `env.oqva.example`) and scripts (`run-oqva.sh`) so `docker-compose.yml`, `Caddyfile.ce`, and `variables.env` stay merge-friendly.
 - **Migrations:** never edit existing migration files; only add new ones. After merging upstream, run `makemigrations` and `migrate` in a staging environment first.
 - **i18n:** if you add user-facing strings, add keys under `packages/i18n` (or the app’s locale files) so upstream i18n merges do not conflict heavily.
+
+---
+
+## 4.5 Commit conventions
+
+Use **Conventional Commits** (https://www.conventionalcommits.org/):
+
+```
+<type>[(<scope>)]: <description>
+
+[optional body]
+
+[optional footer]
+```
+
+- **Types:** `feat` (feature), `fix` (bug fix), `docs`, `chore`, `refactor`, `style`, `test`, `perf`, `ci`, `build`.
+- **Scope (optional):** e.g. `web`, `api`, `run-oqva`, `proxy`.
+- **Description:** imperative, lowercase start; no period at the end.
+- **Body / footer:** when useful (e.g. `BREAKING CHANGE:`, `Refs #123`).
+
+**Examples:**
+
+```
+feat(web): add maintenance banner in top nav
+fix(api): strip quotes from getEnvValue for POSTGRES_USER
+docs(oqva): document backup restore and clean restore
+chore(run-oqva): add backup-db to menu
+refactor(admin): inline basePath in vite.config to avoid @plane/utils at load
+```
