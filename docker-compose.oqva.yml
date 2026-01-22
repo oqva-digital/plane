@@ -57,6 +57,9 @@ services:
       - space
       - admin
       - live
+    networks:
+      - default
+      - plane-shared
 
   tunnel:
     container_name: tunnel
@@ -69,3 +72,8 @@ services:
       - proxy
     profiles:
       - tunnel
+
+networks:
+  plane-shared:
+    external: true
+    name: plane-shared
