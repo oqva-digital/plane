@@ -12,7 +12,28 @@
 	reverse_proxy /live/* live:3000
 
 	handle_path /breakdown/* {
-		reverse_proxy task-breakdown:3001
+		@options method OPTIONS
+		handle @options {
+			header {
+				Access-Control-Allow-Origin "http://localhost:3000"
+				Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+				Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+				Access-Control-Allow-Credentials "true"
+			}
+			respond 204
+		}
+		reverse_proxy task-breakdown:3001 {
+			header_up Host {host}
+			header_up X-Real-IP {remote}
+			header_up X-Forwarded-For {remote}
+			header_up X-Forwarded-Proto {scheme}
+			header_down {
+				Access-Control-Allow-Origin "http://localhost:3000"
+				Access-Control-Allow-Credentials "true"
+				Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+				Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+			}
+		}
 	}
 
 	reverse_proxy /api/* api:8000
