@@ -11,7 +11,7 @@
 	
 	reverse_proxy /live/* live:3000
 
-	handle /breakdown/* {
+	handle_path /breakdown/* {
 		reverse_proxy task-breakdown:3001
 	}
 
