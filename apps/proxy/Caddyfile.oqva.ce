@@ -11,7 +11,7 @@
 	
 	reverse_proxy /live/* live:3000
 
-	reverse_proxy /api/breakdown/* task-breakdown:3001
+	reverse_proxy /breakdown/* task-breakdown:3001
 
 	reverse_proxy /api/* api:8000
 
