@@ -130,6 +130,19 @@ function install_oqva() {
     echo ""
 }
 
+# --- Ensure shared network exists (for task-breakdown integration)
+function ensureSharedNetwork() {
+    if ! docker network inspect plane-shared &>/dev/null; then
+        echo "Creating shared network: plane-shared"
+        docker network create plane-shared
+        if [ $? -eq 0 ]; then
+            echo "   Network 'plane-shared' created successfully"
+        else
+            echo "   Warning: Failed to create network 'plane-shared'. Continuing anyway."
+        fi
+    fi
+}
+
 # --- Start: enable tunnel profile if TUNNEL_TOKEN set; up -d; wait migrator and API
 function startServices() {
     local tok
@@ -137,6 +150,9 @@ function startServices() {
     if [ -n "$tok" ]; then
         export COMPOSE_PROFILES=tunnel
     fi
+
+    # Ensure shared network exists before starting services
+    ensureSharedNetwork
 
     cd "$SCRIPT_DIR" || exit 1
     /bin/bash -c "$COMPOSE_CMD $COMPOSE_FILES --env-file=$DOCKER_ENV_PATH up -d"
