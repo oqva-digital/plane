@@ -99,7 +99,12 @@ export const BreakdownModal = observer(function BreakdownModal(props: Props) {
 
   return (
     <ModalCore isOpen={isOpen} handleClose={handleClose} position={EModalPosition.TOP} width={EModalWidth.XL}>
-      <div className="flex flex-col gap-4 p-5 max-h-[80vh]">
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+      <div
+        className="flex flex-col gap-4 p-5 max-h-[80vh]"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-medium text-primary">AI task breakdown</h2>
@@ -138,102 +143,122 @@ export const BreakdownModal = observer(function BreakdownModal(props: Props) {
               const dependencyTasks = hasDependencies ? getDependencyTasks(task.id, task.dependencies!) : [];
 
               return (
-                <div
-                  key={task.id}
-                  className="flex flex-col gap-3 rounded-lg border border-custom-border-200 bg-custom-background-100 p-4"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="pt-0.5 shrink-0">
-                      <Checkbox
-                        checked={task.selected}
-                        onChange={() => handleToggleSelect(task.id)}
-                        aria-label="Select task to create"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-3 flex-1 min-w-0">
-                      <div className="flex flex-col gap-2">
-                        <Input
-                          value={task.title}
-                          onChange={(e) => handleChangeField(task.id, "title", e.target.value)}
-                          placeholder="Task title"
-                          className="w-full text-sm font-medium"
-                        />
-                        <TextArea
-                          value={task.description ?? ""}
-                          onChange={(e) => handleChangeField(task.id, "description", e.target.value)}
-                          placeholder="Add an optional description or acceptance criteria"
-                          className="text-xs min-h-16 resize-none w-full"
+                <>
+                  {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+                  <div
+                    key={task.id}
+                    className="flex flex-col gap-3 rounded-lg border border-custom-border-200 bg-custom-background-100 p-4"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className="pt-0.5 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        role="none"
+                        tabIndex={-1}
+                      >
+                        <Checkbox
+                          checked={task.selected}
+                          onChange={() => handleToggleSelect(task.id)}
+                          aria-label="Select task to create"
                         />
                       </div>
-
-                      {/* Dependencies section */}
-                      {hasDependencies && (
+                      <div className="flex flex-col gap-3 flex-1 min-w-0">
                         <div className="flex flex-col gap-2">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleDependencyExpansion(task.id);
-                            }}
-                            className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary transition-colors w-fit"
-                          >
-                            <ChevronDownIcon
-                              className={`h-3.5 w-3.5 transition-transform ${isDependenciesExpanded ? "rotate-180" : ""}`}
-                            />
-                            <span className="font-medium">Dependencies ({task.dependencies!.length})</span>
-                          </button>
-                          {isDependenciesExpanded && hasDependencies && dependencyTasks.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 pl-5">
-                              {dependencyTasks.map((depTask) => (
-                                <Badge
-                                  key={depTask.id}
-                                  variant="neutral"
-                                  size="sm"
-                                  className="text-xs font-normal cursor-default"
-                                >
-                                  {depTask.title || `Task ${depTask.id}`}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
+                          <Input
+                            value={task.title}
+                            onChange={(e) => handleChangeField(task.id, "title", e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            placeholder="Task title"
+                            className="w-full text-sm font-medium"
+                          />
+                          <TextArea
+                            value={task.description ?? ""}
+                            onChange={(e) => handleChangeField(task.id, "description", e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            placeholder="Add an optional description or acceptance criteria"
+                            className="text-xs min-h-16 resize-none w-full"
+                          />
                         </div>
-                      )}
 
-                      {/* Metadata badges */}
-                      {(task.priority || task.estimated_hours || (task.tags && task.tags.length > 0)) && (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {task.priority && (
-                            <Badge variant="primary" size="sm" className="text-xs">
-                              Priority: {task.priority}
-                            </Badge>
-                          )}
-                          {task.estimated_hours && (
-                            <Badge variant="primary" size="sm" className="text-xs">
-                              {task.estimated_hours}h estimated
-                            </Badge>
-                          )}
-                          {task.tags && task.tags.length > 0 && (
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {task.tags.map((tag, idx) => (
-                                <Badge key={idx} variant="primary" size="sm" className="text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                        {/* Dependencies section */}
+                        {hasDependencies && (
+                          <div className="flex flex-col gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleDependencyExpansion(task.id);
+                              }}
+                              className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary transition-colors w-fit"
+                            >
+                              <ChevronDownIcon
+                                className={`h-3.5 w-3.5 transition-transform ${isDependenciesExpanded ? "rotate-180" : ""}`}
+                              />
+                              <span className="font-medium">Dependencies ({task.dependencies!.length})</span>
+                            </button>
+                            {isDependenciesExpanded && hasDependencies && dependencyTasks.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 pl-5">
+                                {dependencyTasks.map((depTask) => (
+                                  <Badge
+                                    key={depTask.id}
+                                    variant="neutral"
+                                    size="sm"
+                                    className="text-xs font-normal cursor-default"
+                                  >
+                                    {depTask.title || `Task ${depTask.id}`}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Metadata badges */}
+                        {(task.priority || task.estimated_hours || (task.tags && task.tags.length > 0)) && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {task.priority && (
+                              <Badge variant="primary" size="sm" className="text-xs">
+                                Priority: {task.priority}
+                              </Badge>
+                            )}
+                            {task.estimated_hours && (
+                              <Badge variant="primary" size="sm" className="text-xs">
+                                {task.estimated_hours}h estimated
+                              </Badge>
+                            )}
+                            {task.tags && task.tags.length > 0 && (
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {task.tags.map((tag, idx) => (
+                                  <Badge key={idx} variant="primary" size="sm" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        icon={X}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveTask(task.id);
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="shrink-0 mt-0.5 text-custom-text-400 hover:text-danger-500"
+                        aria-label="Remove task"
+                      />
                     </div>
-                    <IconButton
-                      variant="ghost"
-                      size="sm"
-                      icon={X}
-                      onClick={() => handleRemoveTask(task.id)}
-                      className="shrink-0 mt-0.5 text-custom-text-400 hover:text-danger-500"
-                      aria-label="Remove task"
-                    />
                   </div>
-                </div>
+                </>
               );
             })
           )}
