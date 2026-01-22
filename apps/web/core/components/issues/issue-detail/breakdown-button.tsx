@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { observer } from "mobx-react";
+import { Sparkles } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
-import { AiIcon } from "@plane/propel/icons";
 import { IconButton } from "@plane/propel/icon-button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { TaskBreakdownService } from "@/services/breakdown.service";
@@ -15,8 +15,8 @@ import type {
 // hooks
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 // local imports
-import { BreakdownModal   } from "./breakdown-modal";
-import type {TMockBreakdownTask, TBreakdownConfirmOptions} from "./breakdown-modal";
+import { BreakdownModal } from "./breakdown-modal";
+import type { TMockBreakdownTask, TBreakdownConfirmOptions } from "./breakdown-modal";
 
 type Props = {
   workspaceSlug: string;
@@ -315,7 +315,7 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
         onClick={() => {
           void handleOpenBreakdown();
         }}
-        icon={AiIcon}
+        icon={Sparkles}
         loading={isBreakdownLoading}
         disabled={disabled}
         title="AI breakdown"
