@@ -12,7 +12,7 @@
 	reverse_proxy /live/* live:3000
 
 	handle_path /breakdown/* {
-		reverse_proxy task-breakdown:3001
+		reverse_proxy task-breakdown:3003
 	}
 
 	reverse_proxy /api/* api:8000

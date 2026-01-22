@@ -11,6 +11,8 @@ services:
         VITE_SPACE_BASE_URL: ${WEB_URL:-}
         VITE_LIVE_BASE_URL: ${WEB_URL:-}
         VITE_WEB_BASE_URL: ${WEB_URL:-}
+        VITE_BREAKDOWN_API_URL: ${BREAKDOWN_API_URL:-}
+        VITE_BREAKDOWN_API_KEY: ${TASK_BREAKDOWN_API_KEY:-}
 
   admin:
     build:
