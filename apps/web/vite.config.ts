@@ -34,6 +34,17 @@ export default defineConfig(() => ({
   server: {
     host: "127.0.0.1",
     watch: { usePolling: process.env.CHOKIDAR_USEPOLLING === "1" },
+    proxy: {
+      "/breakdown/api": {
+        // Extract base URL from env (remove /breakdown/api if present)
+        target: (process.env.VITE_BREAKDOWN_API_URL || "https://plane.mush.so/breakdown/api").replace(
+          /\/breakdown\/api\/?$/,
+          ""
+        ),
+        changeOrigin: true,
+        secure: true,
+      },
+    },
   },
   // No SSR-specific overrides needed; alias resolves to ESM build
 }));

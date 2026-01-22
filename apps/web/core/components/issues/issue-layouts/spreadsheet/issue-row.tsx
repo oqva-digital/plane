@@ -12,7 +12,7 @@ import { Tooltip } from "@plane/propel/tooltip";
 import type { IIssueDisplayProperties, TIssue } from "@plane/types";
 import { EIssueServiceType } from "@plane/types";
 // ui
-import { ControlLink, Row } from "@plane/ui";
+import { Badge, ControlLink, Row } from "@plane/ui";
 import { cn, generateWorkItemLink } from "@plane/utils";
 // components
 import { MultipleSelectEntityAction } from "@/components/core/multiple-select";
@@ -203,6 +203,10 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
 
   const subIssueIndentation = `${spacingLeft}px`;
 
+  // NOTE: This flag is currently mocked. Once the backend is ready,
+  // replace this with the real field that indicates AI-generated tasks.
+  const isAIGeneratedFromPRD = !!(issueDetail as TIssue & { ai_generated_from_prd?: boolean })?.ai_generated_from_prd;
+
   useOutsideClickDetector(menuActionRef, () => setIsMenuActive(false));
 
   const customActionButton = (
@@ -212,6 +216,14 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
         isMenuActive ? "bg-layer-1 text-primary" : "text-secondary"
       }`}
       onClick={() => setIsMenuActive(!isMenuActive)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setIsMenuActive(!isMenuActive);
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       <MoreHorizontal className="h-3.5 w-3.5" />
     </div>
@@ -225,8 +237,9 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
       handleIssuePeekOverview(issueDetail);
     } else {
       setExpanded((prevState) => {
-        if (!prevState && workspaceSlug && issueDetail && issueDetail.project_id)
-          subIssuesStore.fetchSubIssues(workspaceSlug.toString(), issueDetail.project_id, issueDetail.id);
+        if (!prevState && workspaceSlug && issueDetail && issueDetail.project_id) {
+          void subIssuesStore.fetchSubIssues(workspaceSlug.toString(), issueDetail.project_id, issueDetail.id);
+        }
         return !prevState;
       });
     }
@@ -349,21 +362,29 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
               </div>
 
               <div className="flex items-center gap-2 justify-between h-full w-full truncate my-auto">
-                <div className="w-full line-clamp-1 text-14 text-primary">
+                <div className="flex items-center gap-1 w-full line-clamp-1 text-14 text-primary">
                   <div className="w-full overflow-hidden">
                     <Tooltip tooltipContent={issueDetail.name} isMobile={isMobile}>
-                      <div
-                        className="h-full w-full cursor-pointer truncate pr-4 text-left text-13 text-primary focus:outline-none"
-                        tabIndex={-1}
-                      >
+                      <div className="h-full w-full truncate pr-4 text-left text-13 text-primary focus:outline-none">
                         {issueDetail.name}
                       </div>
                     </Tooltip>
                   </div>
+                  {isAIGeneratedFromPRD && (
+                    <Badge variant="neutral-primary" size="sm" className="shrink-0 text-[10px] uppercase tracking-wide">
+                      AI
+                    </Badge>
+                  )}
                 </div>
                 <div
                   className={`opacity-0 group-hover:opacity-100 transition-opacity ${isMenuActive ? "!opacity-100" : ""}`}
                   onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      e.stopPropagation();
+                    }
+                  }}
+                  role="presentation"
                 >
                   {quickActions({
                     issue: issueDetail,

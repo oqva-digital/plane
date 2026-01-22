@@ -1,5 +1,3 @@
-import type { FC } from "react";
-import React from "react";
 import { Paperclip } from "lucide-react";
 import { useTranslation } from "@plane/i18n";
 import { LinkIcon, ViewsIcon, RelationPropertyIcon } from "@plane/propel/icons";
@@ -9,6 +7,7 @@ import type { TIssueServiceType, TWorkItemWidgets } from "@plane/types";
 import { WorkItemAdditionalWidgetActionButtons } from "@/plane-web/components/issues/issue-detail-widgets/action-buttons";
 // local imports
 import { IssueAttachmentActionButton } from "./attachments";
+import { BreakdownActionButton } from "./breakdown";
 import { IssueLinksActionButton } from "./links";
 import { RelationActionButton } from "./relations";
 import { SubIssuesActionButton } from "./sub-issues";
@@ -44,6 +43,14 @@ export function IssueDetailWidgetActionButtons(props: Props) {
           issueServiceType={issueServiceType}
         />
       )}
+      {/* AI breakdown (mocked) - uses same modal/fluxo do header de detalhe */}
+      <BreakdownActionButton
+        workspaceSlug={workspaceSlug}
+        projectId={projectId}
+        issueId={issueId}
+        disabled={disabled}
+        issueServiceType={issueServiceType}
+      />
       {!hideWidgets?.includes("relations") && (
         <RelationActionButton
           issueId={issueId}
