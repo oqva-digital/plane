@@ -14,19 +14,12 @@ import { APIService } from "@/services/api.service";
  * This service is frontend-specific and should not be in shared packages.
  */
 export class TaskBreakdownService extends APIService {
-  constructor() {
-    // In development, use proxy (empty baseURL for relative paths)
-    // In production, use the full external API URL from env (e.g., https://plane.mush.so/breakdown/api)
-    const isDevelopment = import.meta.env.DEV;
-    const breakdownApiUrl = isDevelopment ? "" : process.env.VITE_BREAKDOWN_API_URL || "";
-    super(breakdownApiUrl);
-  }
+  private breakdownApiUrl: string;
 
-  private getApiPath(path: string): string {
-    // In development, prepend /breakdown/api for proxy
-    // In production, use path as-is (baseURL already includes /breakdown/api)
-    const isDevelopment = import.meta.env.DEV;
-    return isDevelopment ? `/breakdown/api${path}` : path;
+  constructor() {
+    const breakdownApiUrl = process.env.VITE_BREAKDOWN_API_URL || "";
+    super(breakdownApiUrl);
+    this.breakdownApiUrl = breakdownApiUrl;
   }
 
   /**
@@ -34,7 +27,7 @@ export class TaskBreakdownService extends APIService {
    * Wraps POST /api/breakdown.
    */
   async generateBreakdown(payload: ITaskBreakdownRequest, apiKey: string): Promise<ITaskBreakdownResponse> {
-    return this.post(this.getApiPath("/breakdown"), payload, {
+    return this.post(`${this.breakdownApiUrl}/breakdown`, payload, {
       headers: {
         "X-Breakdown-API-Key": apiKey,
       },
@@ -51,7 +44,7 @@ export class TaskBreakdownService extends APIService {
    * Wraps POST /api/expand.
    */
   async generateExpand(payload: ITaskBreakdownExpandRequest, apiKey: string): Promise<ITaskBreakdownResponse> {
-    return this.post(this.getApiPath("/expand"), payload, {
+    return this.post(`${this.breakdownApiUrl}/expand`, payload, {
       headers: {
         "X-Breakdown-API-Key": apiKey,
       },
@@ -71,7 +64,7 @@ export class TaskBreakdownService extends APIService {
     payload: ITaskBreakdownConfirmRequest,
     apiKey: string
   ): Promise<ITaskBreakdownConfirmResponse> {
-    return this.post(this.getApiPath("/confirm"), payload, {
+    return this.post(`${this.breakdownApiUrl}/confirm`, payload, {
       headers: {
         "X-Breakdown-API-Key": apiKey,
       },
