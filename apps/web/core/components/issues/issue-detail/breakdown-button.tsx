@@ -40,6 +40,8 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
   } = useIssueDetail();
 
   const handleOpenBreakdown = async () => {
+    // Open modal immediately
+    setIsBreakdownModalOpen(true);
     setIsBreakdownLoading(true);
     try {
       const issue = getIssueById(issueId);
@@ -196,6 +198,7 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
       setBreakdownTasks(mappedTasks);
       setIsBreakdownModalOpen(true);
     } catch (_error) {
+      setIsBreakdownModalOpen(false);
       setToast({
         title: t("toast.error"),
         type: TOAST_TYPE.ERROR,
@@ -316,7 +319,6 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
           void handleOpenBreakdown();
         }}
         icon={Sparkles}
-        loading={isBreakdownLoading}
         disabled={disabled}
         title="AI breakdown"
       />
@@ -326,6 +328,7 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
         onConfirm={handleConfirmBreakdown}
         initialTasks={breakdownTasks}
         isSubmitting={isBreakdownSubmitting}
+        isLoading={isBreakdownLoading}
       />
     </>
   );
