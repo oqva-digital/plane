@@ -184,16 +184,29 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
       }
 
       const mappedTasks: TMockBreakdownTask[] =
-        response.suggested_tasks?.map((task: ITaskBreakdownSuggestedTask) => ({
-          id: task.temp_id,
-          title: task.title,
-          description: task.description,
-          selected: true,
-          priority: task.priority,
-          estimated_hours: task.estimated_hours,
-          dependencies: task.dependencies,
-          tags: task.tags,
-        })) ?? [];
+        response.suggested_tasks?.map((task: ITaskBreakdownSuggestedTask) => {
+          // Concatenate description with details and test_strategy if they exist
+          let fullDescription = task.description;
+
+          if (task.details) {
+            fullDescription += `\n\n**Details:**\n${task.details}`;
+          }
+
+          if (task.test_strategy) {
+            fullDescription += `\n\n**Test Strategy:**\n${task.test_strategy}`;
+          }
+
+          return {
+            id: task.temp_id,
+            title: task.title,
+            description: fullDescription,
+            selected: true,
+            priority: task.priority,
+            estimated_hours: task.estimated_hours,
+            dependencies: task.dependencies,
+            tags: task.tags,
+          };
+        }) ?? [];
 
       setBreakdownTasks(mappedTasks);
       setIsBreakdownModalOpen(true);

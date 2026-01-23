@@ -30,6 +30,8 @@ export interface ITaskBreakdownSuggestedTask {
   temp_id: string;
   title: string;
   description: string;
+  details?: string;
+  test_strategy?: string;
   priority: TTaskBreakdownPriority;
   estimated_hours?: number;
   dependencies: string[];
