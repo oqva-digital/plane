@@ -18,17 +18,12 @@ export class TaskBreakdownService {
   private axiosInstance: AxiosInstance;
 
   constructor() {
-    const breakdownApiUrl = process.env.VITE_BREAKDOWN_API_URL || "/breakdown/api";
-    // Prefer a relative baseURL (same-origin) to avoid CORS in dev/prod.
-    // This should point to the proxy prefix, e.g.:
-    // - /breakdown/api (recommended)
-    // - https://plane.mush.so/breakdown/api
-    const baseUrl = breakdownApiUrl.replace(/\/$/, "");
-    this.breakdownApiUrl = baseUrl;
+    const breakdownApiUrl = process.env.VITE_BREAKDOWN_API_URL || "";
+    this.breakdownApiUrl = breakdownApiUrl;
 
     // Create axios instance without credentials for external API
     this.axiosInstance = axios.create({
-      baseURL: baseUrl,
+      baseURL: breakdownApiUrl,
       withCredentials: false, // External API doesn't need credentials
     });
   }
@@ -39,7 +34,7 @@ export class TaskBreakdownService {
    */
   async generateBreakdown(payload: ITaskBreakdownRequest, apiKey: string): Promise<ITaskBreakdownResponse> {
     return this.axiosInstance
-      .post("breakdown", payload, {
+      .post("/breakdown", payload, {
         headers: {
           "X-Breakdown-API-Key": apiKey,
         },
@@ -57,7 +52,7 @@ export class TaskBreakdownService {
    */
   async generateExpand(payload: ITaskBreakdownExpandRequest, apiKey: string): Promise<ITaskBreakdownResponse> {
     return this.axiosInstance
-      .post("expand", payload, {
+      .post("/expand", payload, {
         headers: {
           "X-Breakdown-API-Key": apiKey,
         },
@@ -78,7 +73,7 @@ export class TaskBreakdownService {
     apiKey: string
   ): Promise<ITaskBreakdownConfirmResponse> {
     return this.axiosInstance
-      .post("breakdown/confirm", payload, {
+      .post("/breakdown/confirm", payload, {
         headers: {
           "X-Breakdown-API-Key": apiKey,
         },
