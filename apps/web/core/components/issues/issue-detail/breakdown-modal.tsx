@@ -193,6 +193,7 @@ export const BreakdownModal = observer(function BreakdownModal(props: Props) {
                 void handleConfirm();
               }}
               loading={isSubmitting}
+              disabled={isLoading || isSubmitting}
             >
               Confirm
             </Button>
