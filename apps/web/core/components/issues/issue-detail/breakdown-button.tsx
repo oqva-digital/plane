@@ -37,6 +37,7 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
   const breakdownService = new TaskBreakdownService();
   const {
     issue: { getIssueById },
+    fetchIssue,
   } = useIssueDetail();
 
   const handleOpenBreakdown = async () => {
@@ -309,6 +310,14 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
           title: "Tasks created successfully",
           message: `${createdCount} task(s) created.`,
         });
+      }
+
+      // Reload issue data to fetch the newly created tasks
+      try {
+        await fetchIssue(workspaceSlug, projectId, issueId);
+      } catch (reloadError) {
+        // Silently fail - the toast already shows success
+        console.error("Failed to reload issue data:", reloadError);
       }
 
       setIsBreakdownModalOpen(false);
