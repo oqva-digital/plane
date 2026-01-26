@@ -14,6 +14,8 @@ import type {
 } from "@/types/breakdown";
 // hooks
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
+import { useIssuesActions } from "@/hooks/use-issues-actions";
+import { EIssuesStoreType } from "@plane/types";
 // local imports
 import { BreakdownModal } from "./breakdown-modal";
 import type { TMockBreakdownTask, TBreakdownConfirmOptions } from "./breakdown-modal";
@@ -41,6 +43,7 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
     fetchIssue,
     subIssues: { fetchSubIssues },
   } = useIssueDetail();
+  const { fetchIssues } = useIssuesActions(EIssuesStoreType.PROJECT);
 
   const handleOpenBreakdown = async () => {
     // Open modal immediately
@@ -320,14 +323,14 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
 
       // Reload issue data to fetch the newly created tasks
       try {
-        // Wait a bit to ensure tasks are created on the backend
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        
         // Fetch the issue (which also fetches sub issues)
         await fetchIssue(workspaceSlug, projectId, issueId);
-        
+
         // Explicitly fetch sub issues again to ensure they're loaded
         await fetchSubIssues(workspaceSlug, projectId, issueId);
+
+        // Refresh the project issues list to show the new tasks in the backlog
+        await fetchIssues("mutation", { canGroup: true, perPageCount: 100 });
       } catch (reloadError) {
         // Silently fail - the toast already shows success
         console.error("Failed to reload issue data:", reloadError);
