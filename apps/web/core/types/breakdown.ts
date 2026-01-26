@@ -60,10 +60,12 @@ export interface ITaskBreakdownConfirmRequest {
   project_id: string;
   parent_work_item_id: string;
   tasks_to_create: Array<{
+    temp_id?: string;
     title: string;
     description?: string;
     priority?: TTaskBreakdownPriority;
     labels?: string[];
+    dependencies?: string[];
   }>;
   options?: {
     link_to_parent?: boolean;

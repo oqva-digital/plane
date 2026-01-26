@@ -53,7 +53,99 @@ export const BreakdownModal = observer(function BreakdownModal(props: Props) {
   };
 
   const handleToggleSelect = (id: string) => {
-    setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, selected: !task.selected } : task)));
+    setTasks((prev) => {
+      const task = prev.find((t) => t.id === id);
+      if (!task) return prev;
+
+      const newSelected = !task.selected;
+      const updatedTasks = [...prev];
+
+      // Find the task index
+      const taskIndex = updatedTasks.findIndex((t) => t.id === id);
+      if (taskIndex === -1) return prev;
+
+      // Toggle the selected task
+      updatedTasks[taskIndex] = { ...updatedTasks[taskIndex], selected: newSelected };
+
+      if (newSelected) {
+        // When selecting: also select all dependencies recursively
+        const selectDependencies = (depIds: string[]) => {
+          depIds.forEach((depId) => {
+            const depIndex = updatedTasks.findIndex((t) => t.id === depId);
+            if (depIndex !== -1 && !updatedTasks[depIndex].selected) {
+              updatedTasks[depIndex] = { ...updatedTasks[depIndex], selected: true };
+              // Recursively select dependencies of this dependency
+              if (updatedTasks[depIndex].dependencies && updatedTasks[depIndex].dependencies.length > 0) {
+                selectDependencies(updatedTasks[depIndex].dependencies);
+              }
+            }
+          });
+        };
+
+        // Select all dependencies of this task
+        if (task.dependencies && task.dependencies.length > 0) {
+          selectDependencies(task.dependencies);
+        }
+
+        // Also select all tasks that depend on this one recursively
+        const selectDependents = (taskId: string) => {
+          updatedTasks.forEach((t, index) => {
+            if (t.dependencies && t.dependencies.includes(taskId) && !t.selected) {
+              updatedTasks[index] = { ...updatedTasks[index], selected: true };
+              // Recursively select tasks that depend on this one
+              selectDependents(t.id);
+            }
+          });
+        };
+
+        selectDependents(id);
+      } else {
+        // When deselecting: also deselect all tasks that depend on this one recursively
+        const deselectDependents = (taskId: string) => {
+          updatedTasks.forEach((t, index) => {
+            if (t.dependencies && t.dependencies.includes(taskId) && t.selected) {
+              updatedTasks[index] = { ...updatedTasks[index], selected: false };
+              // Recursively deselect tasks that depend on this one
+              deselectDependents(t.id);
+            }
+          });
+        };
+
+        deselectDependents(id);
+
+        // After deselecting, check if dependencies are still needed by other selected tasks
+        // and recursively deselect them if not needed
+        const checkAndDeselectDependency = (depId: string) => {
+          // Check if this dependency is still needed by any other selected task
+          const isStillNeeded = updatedTasks.some(
+            (t) => t.selected && t.dependencies && t.dependencies.includes(depId) && t.id !== id
+          );
+
+          if (!isStillNeeded) {
+            const depIndex = updatedTasks.findIndex((t) => t.id === depId);
+            if (depIndex !== -1 && updatedTasks[depIndex].selected) {
+              updatedTasks[depIndex] = { ...updatedTasks[depIndex], selected: false };
+              // Recursively check and deselect dependencies of this dependency
+              const depTask = updatedTasks[depIndex];
+              if (depTask.dependencies && depTask.dependencies.length > 0) {
+                depTask.dependencies.forEach((nestedDepId) => {
+                  checkAndDeselectDependency(nestedDepId);
+                });
+              }
+            }
+          }
+        };
+
+        // Check each dependency of the deselected task
+        if (task.dependencies && task.dependencies.length > 0) {
+          task.dependencies.forEach((depId) => {
+            checkAndDeselectDependency(depId);
+          });
+        }
+      }
+
+      return updatedTasks;
+    });
   };
 
   const handleUpdateTask = (id: string, field: "title" | "description", value: string) => {

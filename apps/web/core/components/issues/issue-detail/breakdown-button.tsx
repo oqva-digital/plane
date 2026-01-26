@@ -39,6 +39,7 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
   const {
     issue: { getIssueById },
     fetchIssue,
+    subIssues: { fetchSubIssues },
   } = useIssueDetail();
 
   const handleOpenBreakdown = async () => {
@@ -278,10 +279,12 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
           tasks_to_create: tasks
             .filter((task) => task.selected)
             .map((task) => ({
+              temp_id: task.id,
               title: task.title,
               description: task.description,
               priority: task.priority,
               labels: task.tags || [],
+              dependencies: task.dependencies || [],
             })),
           options: {
             link_to_parent: options.link_to_parent,
@@ -317,7 +320,14 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
 
       // Reload issue data to fetch the newly created tasks
       try {
+        // Wait a bit to ensure tasks are created on the backend
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        
+        // Fetch the issue (which also fetches sub issues)
         await fetchIssue(workspaceSlug, projectId, issueId);
+        
+        // Explicitly fetch sub issues again to ensure they're loaded
+        await fetchSubIssues(workspaceSlug, projectId, issueId);
       } catch (reloadError) {
         // Silently fail - the toast already shows success
         console.error("Failed to reload issue data:", reloadError);
