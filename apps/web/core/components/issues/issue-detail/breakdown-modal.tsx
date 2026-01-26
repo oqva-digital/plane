@@ -86,19 +86,6 @@ export const BreakdownModal = observer(function BreakdownModal(props: Props) {
         if (task.dependencies && task.dependencies.length > 0) {
           selectDependencies(task.dependencies);
         }
-
-        // Also select all tasks that depend on this one recursively
-        const selectDependents = (taskId: string) => {
-          updatedTasks.forEach((t, index) => {
-            if (t.dependencies && t.dependencies.includes(taskId) && !t.selected) {
-              updatedTasks[index] = { ...updatedTasks[index], selected: true };
-              // Recursively select tasks that depend on this one
-              selectDependents(t.id);
-            }
-          });
-        };
-
-        selectDependents(id);
       } else {
         // When deselecting: also deselect all tasks that depend on this one recursively
         const deselectDependents = (taskId: string) => {
