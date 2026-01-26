@@ -26,6 +26,12 @@ from .issue import (
     IssueSearchEndpoint,
 )
 
+from .issue_relation import (
+    IssueRelationListAPIEndpoint,
+    IssueRelationCreateAPIEndpoint,
+    IssueRelationDeleteAPIEndpoint,
+)
+
 from .cycle import (
     CycleListCreateAPIEndpoint,
     CycleDetailAPIEndpoint,
