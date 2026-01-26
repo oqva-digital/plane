@@ -17,6 +17,7 @@ import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 // local imports
 import { BreakdownModal } from "./breakdown-modal";
 import type { TMockBreakdownTask, TBreakdownConfirmOptions } from "./breakdown-modal";
+import { getBreakdownMaxTasks } from "@/helpers/breakdown-max-tasks";
 
 type Props = {
   workspaceSlug: string;
@@ -157,6 +158,8 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
 
       // API call
       let response: ITaskBreakdownResponse;
+      // Get max_tasks from localStorage (defaults to 5)
+      const maxTasks = getBreakdownMaxTasks();
 
       if (hasParent) {
         // Child work item - use expand endpoint
@@ -165,7 +168,7 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
           workspace_slug: workspaceSlug,
           project_id: projectId,
           options: {
-            max_subtasks: 5,
+            max_subtasks: maxTasks,
             include_context_from_parent: false,
           },
         };
@@ -177,7 +180,7 @@ export const BreakdownButton = observer(function BreakdownButton(props: Props) {
           workspace_slug: workspaceSlug,
           project_id: projectId,
           options: {
-            max_tasks: 10,
+            max_tasks: maxTasks,
             include_estimates: true,
           },
         };

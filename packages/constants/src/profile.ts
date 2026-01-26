@@ -103,6 +103,11 @@ export const PREFERENCE_OPTIONS: {
     title: "First day of the week",
     description: "This will change how all calendars in your app look.",
   },
+  {
+    id: "breakdown_max_tasks",
+    title: "Maximum tasks for AI breakdown",
+    description: "Set the maximum number of tasks that AI breakdown will generate (5-50).",
+  },
 ];
 
 /**
