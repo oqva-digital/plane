@@ -43,7 +43,7 @@ export function IssueDetailWidgetActionButtons(props: Props) {
           issueServiceType={issueServiceType}
         />
       )}
-      {/* AI breakdown (mocked) - uses same modal/fluxo do header de detalhe */}
+      {/* AI breakdown (mocked) - uses same modal/flow as the breakdown button in the header */}
       <BreakdownActionButton
         workspaceSlug={workspaceSlug}
         projectId={projectId}
