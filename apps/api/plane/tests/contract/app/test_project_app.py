@@ -85,10 +85,21 @@ class TestProjectAPIPost(TestProjectBase):
         # Verify ProjectUserProperty was created
         assert ProjectUserProperty.objects.filter(project=project, user=user).exists()
 
-        # Verify default states were created
+        # Verify default states were created (original + review workflow; Triage excluded by default manager)
         states = State.objects.filter(project=project)
-        assert states.count() == 5
-        expected_states = ["Backlog", "Todo", "In Progress", "Done", "Cancelled"]
+        assert states.count() == 10
+        expected_states = [
+            "Backlog",
+            "Blocked",
+            "In Progress",
+            "Done",
+            "Cancelled",
+            "Ready for Dev",
+            "Needs Input",
+            "In Review",
+            "Needs Revision",
+            "Review Approved",
+        ]
         state_names = list(states.values_list("name", flat=True))
         assert set(state_names) == set(expected_states)
 
