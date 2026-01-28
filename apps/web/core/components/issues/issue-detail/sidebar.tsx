@@ -299,7 +299,7 @@ export const IssueDetailsSidebar = observer(function IssueDetailsSidebar(props: 
               <input
                 type="text"
                 className="w-full px-3 py-2 bg-transparent text-body-xs-regular border-none outline-none focus:ring-0 focus:border-0 disabled:cursor-not-allowed disabled:opacity-60"
-                placeholder="Add GitHub link (e.g. https://github.com/oqva/default-repo.git)"
+                placeholder="Add GitHub (e.g. oqva/default-repo)"
                 disabled={!isEditable}
                 value={githubLink}
                 onChange={(e) => setGithubLink(e.target.value)}
