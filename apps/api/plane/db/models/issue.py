@@ -155,6 +155,8 @@ class Issue(ProjectBaseModel):
     is_draft = models.BooleanField(default=False)
     external_source = models.CharField(max_length=255, null=True, blank=True)
     external_id = models.CharField(max_length=255, blank=True, null=True)
+    github_link = models.URLField(max_length=500, null=True, blank=True)
+    agent = models.CharField(max_length=100, null=True, blank=True)
     type = models.ForeignKey(
         "db.IssueType",
         on_delete=models.SET_NULL,
