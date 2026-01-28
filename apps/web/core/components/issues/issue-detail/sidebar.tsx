@@ -1,4 +1,5 @@
 import { observer } from "mobx-react";
+import { useEffect, useRef, useState } from "react";
 // i18n
 import { useTranslation } from "@plane/i18n";
 // ui
@@ -14,7 +15,9 @@ import {
   UserCirclePropertyIcon,
   EstimatePropertyIcon,
   ParentPropertyIcon,
+  GithubIcon,
 } from "@plane/propel/icons";
+import { UserIcon } from "lucide-react";
 import { cn, getDate, renderFormattedPayloadDate, shouldHighlightIssueDueDate } from "@plane/utils";
 // components
 import { DateDropdown } from "@/components/dropdowns/date";
@@ -62,6 +65,43 @@ export const IssueDetailsSidebar = observer(function IssueDetailsSidebar(props: 
   const { getUserDetails } = useMember();
   const { getStateById } = useProjectState();
   const issue = getIssueById(issueId);
+
+  // Local editable fields for GitHub link and Agent (save on blur/Enter, not every keystroke)
+  const [githubLink, setGithubLink] = useState(issue?.github_link ?? "");
+  const [agent, setAgent] = useState(issue?.agent ?? "");
+  const refGithubLink = useRef(githubLink);
+  const refAgent = useRef(agent);
+  const refIssue = useRef(issue);
+  refGithubLink.current = githubLink;
+  refAgent.current = agent;
+  refIssue.current = issue;
+
+  useEffect(() => {
+    setGithubLink(issue?.github_link ?? "");
+  }, [issue?.github_link]);
+
+  useEffect(() => {
+    setAgent(issue?.agent ?? "");
+  }, [issue?.agent]);
+
+  useEffect(() => {
+    return () => {
+      const currentIssue = refIssue.current;
+      const latestGithub = refGithubLink.current.trim() || null;
+      if (latestGithub !== (currentIssue?.github_link ?? null)) {
+        void issueOperations.update(workspaceSlug, projectId, issueId, {
+          github_link: latestGithub,
+        });
+      }
+      const latestAgent = refAgent.current.trim() || null;
+      if (latestAgent !== (currentIssue?.agent ?? null)) {
+        void issueOperations.update(workspaceSlug, projectId, issueId, {
+          agent: latestAgent,
+        });
+      }
+    };
+  }, [workspaceSlug, projectId, issueId, issueOperations]);
+
   if (!issue) return <></>;
 
   const createdByDetails = getUserDetails(issue.created_by);
@@ -85,7 +125,7 @@ export const IssueDetailsSidebar = observer(function IssueDetailsSidebar(props: 
             <SidebarPropertyListItem icon={StatePropertyIcon} label={t("common.state")}>
               <StateDropdown
                 value={issue?.state_id}
-                onChange={(val) => issueOperations.update(workspaceSlug, projectId, issueId, { state_id: val })}
+                onChange={(val) => void issueOperations.update(workspaceSlug, projectId, issueId, { state_id: val })}
                 projectId={projectId?.toString() ?? ""}
                 disabled={!isEditable}
                 buttonVariant="transparent-with-text"
@@ -100,7 +140,9 @@ export const IssueDetailsSidebar = observer(function IssueDetailsSidebar(props: 
             <SidebarPropertyListItem icon={MembersPropertyIcon} label={t("common.assignees")}>
               <MemberDropdown
                 value={issue?.assignee_ids ?? undefined}
-                onChange={(val) => issueOperations.update(workspaceSlug, projectId, issueId, { assignee_ids: val })}
+                onChange={(val) =>
+                  void issueOperations.update(workspaceSlug, projectId, issueId, { assignee_ids: val })
+                }
                 disabled={!isEditable}
                 projectId={projectId?.toString() ?? ""}
                 placeholder={t("issue.add.assignee")}
@@ -118,7 +160,7 @@ export const IssueDetailsSidebar = observer(function IssueDetailsSidebar(props: 
             <SidebarPropertyListItem icon={PriorityPropertyIcon} label={t("common.priority")}>
               <PriorityDropdown
                 value={issue?.priority}
-                onChange={(val) => issueOperations.update(workspaceSlug, projectId, issueId, { priority: val })}
+                onChange={(val) => void issueOperations.update(workspaceSlug, projectId, issueId, { priority: val })}
                 disabled={!isEditable}
                 buttonVariant="transparent-with-text"
                 className="w-full h-7.5 grow rounded-sm"
@@ -141,7 +183,7 @@ export const IssueDetailsSidebar = observer(function IssueDetailsSidebar(props: 
                 placeholder={t("issue.add.start_date")}
                 value={issue.start_date}
                 onChange={(val) =>
-                  issueOperations.update(workspaceSlug, projectId, issueId, {
+                  void issueOperations.update(workspaceSlug, projectId, issueId, {
                     start_date: val ? renderFormattedPayloadDate(val) : null,
                   })
                 }
@@ -162,7 +204,7 @@ export const IssueDetailsSidebar = observer(function IssueDetailsSidebar(props: 
                   placeholder={t("issue.add.due_date")}
                   value={issue.target_date}
                   onChange={(val) =>
-                    issueOperations.update(workspaceSlug, projectId, issueId, {
+                    void issueOperations.update(workspaceSlug, projectId, issueId, {
                       target_date: val ? renderFormattedPayloadDate(val) : null,
                     })
                   }
@@ -187,7 +229,7 @@ export const IssueDetailsSidebar = observer(function IssueDetailsSidebar(props: 
                 <EstimateDropdown
                   value={issue?.estimate_point ?? undefined}
                   onChange={(val: string | undefined) =>
-                    issueOperations.update(workspaceSlug, projectId, issueId, { estimate_point: val })
+                    void issueOperations.update(workspaceSlug, projectId, issueId, { estimate_point: val })
                   }
                   projectId={projectId}
                   disabled={!isEditable}
@@ -250,6 +292,54 @@ export const IssueDetailsSidebar = observer(function IssueDetailsSidebar(props: 
                 projectId={projectId}
                 issueId={issueId}
                 disabled={!isEditable}
+              />
+            </SidebarPropertyListItem>
+
+            <SidebarPropertyListItem icon={GithubIcon} label="GitHub">
+              <input
+                type="text"
+                className="w-full px-3 py-2 bg-transparent text-body-xs-regular border-none outline-none focus:ring-0 focus:border-0 disabled:cursor-not-allowed disabled:opacity-60"
+                placeholder="Add GitHub link (e.g. https://github.com/oqva/default-repo.git)"
+                disabled={!isEditable}
+                value={githubLink}
+                onChange={(e) => setGithubLink(e.target.value)}
+                onBlur={() => {
+                  const normalized = githubLink.trim() || null;
+                  if (normalized !== (issue.github_link ?? null)) {
+                    void issueOperations.update(workspaceSlug, projectId, issueId, {
+                      github_link: normalized,
+                    });
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+              />
+            </SidebarPropertyListItem>
+
+            <SidebarPropertyListItem icon={UserIcon} label="Agent">
+              <input
+                type="text"
+                className="w-full px-3 py-2 bg-transparent text-body-xs-regular border-none outline-none focus:ring-0 focus:border-0 disabled:cursor-not-allowed disabled:opacity-60"
+                placeholder="Add Agent (e.g. claude)"
+                disabled={!isEditable}
+                value={agent}
+                onChange={(e) => setAgent(e.target.value)}
+                onBlur={() => {
+                  const normalized = agent.trim() || null;
+                  if (normalized !== (issue.agent ?? null)) {
+                    void issueOperations.update(workspaceSlug, projectId, issueId, {
+                      agent: normalized,
+                    });
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
               />
             </SidebarPropertyListItem>
 

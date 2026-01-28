@@ -85,6 +85,8 @@ export type TIssue = TBaseIssue & {
   description_html?: string;
   is_subscribed?: boolean;
   parent?: Partial<TBaseIssue>;
+  github_link?: string | null;
+  agent?: string | null;
   issue_reactions?: TIssueReaction[];
   issue_attachments?: TIssueAttachment[];
   issue_link?: TIssueLink[];
