@@ -33,7 +33,10 @@ function mapTaskToSuggested(t: TaskMasterTask, index: number, idToTemp: Map<numb
     title: t.title || "Untitled",
     description: t.description || t.title,
     details: t.details,
-    test_strategy: (t as TaskMasterTask & { testStrategy?: string }).testStrategy ?? t.test_strategy,
+    test_strategy: (() => {
+      const val = (t as TaskMasterTask & { testStrategy?: string }).testStrategy ?? t.test_strategy;
+      return typeof val === "string" ? val : undefined;
+    })(),
     priority: toPlanePriority(t.priority),
     estimated_hours: (() => {
       const h = (t as TaskMasterTask & { estimatedHours?: number }).estimatedHours ?? t.estimated_hours;
