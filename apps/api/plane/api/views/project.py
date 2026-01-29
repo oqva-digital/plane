@@ -28,6 +28,7 @@ from plane.db.models import (
     Workspace,
     UserFavorite,
 )
+from plane.utils.default_project_member import add_default_project_member
 from plane.bgtasks.webhook_task import model_activity, webhook_activity
 from .base import BaseAPIView
 from plane.utils.host import base_host
@@ -227,6 +228,8 @@ class ProjectListCreateAPIEndpoint(BaseAPIView):
                         member_id=serializer.instance.project_lead,
                         role=20,
                     )
+
+                add_default_project_member(workspace.id, serializer.instance.id)
 
                 State.objects.bulk_create(
                     [
