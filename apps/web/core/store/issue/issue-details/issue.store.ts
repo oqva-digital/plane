@@ -95,9 +95,13 @@ export class IssueStore implements IIssueStore {
     // store handlers from issue detail
     // parent
     if (issue && issue?.parent && issue?.parent?.id && issue?.parent?.project_id) {
-      this.issueService.retrieve(workspaceSlug, issue.parent.project_id, issue?.parent?.id).then((res) => {
-        this.rootIssueDetailStore.rootIssueStore.issues.addIssue([res]);
-      });
+      void this.issueService
+        .retrieve(workspaceSlug, issue.parent.project_id, issue?.parent?.id)
+        .then((res) => {
+          this.rootIssueDetailStore.rootIssueStore.issues.addIssue([res]);
+          return res;
+        })
+        .catch(() => {});
     }
     // assignees
     // labels
@@ -115,20 +119,20 @@ export class IssueStore implements IIssueStore {
     this.rootIssueDetailStore.addSubscription(issueId, issue.is_subscribed);
 
     // fetch issue activity
-    this.rootIssueDetailStore.activity.fetchActivities(workspaceSlug, projectId, issueId);
+    void this.rootIssueDetailStore.activity.fetchActivities(workspaceSlug, projectId, issueId);
 
     // fetch issue comments
-    this.rootIssueDetailStore.comment.fetchComments(workspaceSlug, projectId, issueId);
+    void this.rootIssueDetailStore.comment.fetchComments(workspaceSlug, projectId, issueId);
 
     // fetch sub issues
-    this.rootIssueDetailStore.subIssues.fetchSubIssues(workspaceSlug, projectId, issueId);
+    void this.rootIssueDetailStore.subIssues.fetchSubIssues(workspaceSlug, projectId, issueId);
 
     // fetch issue relations
-    this.rootIssueDetailStore.relation.fetchRelations(workspaceSlug, projectId, issueId);
+    void this.rootIssueDetailStore.relation.fetchRelations(workspaceSlug, projectId, issueId);
 
     // fetching states
     // TODO: check if this function is required
-    this.rootIssueDetailStore.rootIssueStore.rootStore.state.fetchProjectStates(workspaceSlug, projectId);
+    void this.rootIssueDetailStore.rootIssueStore.rootStore.state.fetchProjectStates(workspaceSlug, projectId);
 
     return issue;
   };
@@ -164,6 +168,10 @@ export class IssueStore implements IIssueStore {
       is_draft: issue?.is_draft,
       is_subscribed: issue?.is_subscribed,
       is_epic: issue?.is_epic,
+       
+      github_link: issue?.github_link,
+       
+      agent: issue?.agent,
     };
 
     this.rootIssueDetailStore.rootIssueStore.issues.addIssue([issuePayload]);
@@ -189,7 +197,7 @@ export class IssueStore implements IIssueStore {
       this.serviceType === EIssueServiceType.EPICS
         ? this.rootIssueDetailStore.rootIssueStore.projectEpics
         : this.rootIssueDetailStore.rootIssueStore.projectIssues;
-    currentStore.removeIssue(workspaceSlug, projectId, issueId);
+    await currentStore.removeIssue(workspaceSlug, projectId, issueId);
   };
 
   archiveIssue = async (workspaceSlug: string, projectId: string, issueId: string) => {
@@ -197,7 +205,7 @@ export class IssueStore implements IIssueStore {
       this.serviceType === EIssueServiceType.EPICS
         ? this.rootIssueDetailStore.rootIssueStore.projectEpics
         : this.rootIssueDetailStore.rootIssueStore.projectIssues;
-    currentStore.archiveIssue(workspaceSlug, projectId, issueId);
+    await currentStore.archiveIssue(workspaceSlug, projectId, issueId);
   };
 
   addCycleToIssue = async (workspaceSlug: string, projectId: string, cycleId: string, issueId: string) => {
@@ -280,9 +288,13 @@ export class IssueStore implements IIssueStore {
 
     // handle parent issue if exists
     if (issue?.parent && issue?.parent?.id && issue?.parent?.project_id) {
-      this.issueService.retrieve(workspaceSlug, issue.parent.project_id, issue.parent.id).then((res) => {
-        this.rootIssueDetailStore.rootIssueStore.issues.addIssue([res]);
-      });
+      void this.issueService
+        .retrieve(workspaceSlug, issue.parent.project_id, issue.parent.id)
+        .then((res) => {
+          this.rootIssueDetailStore.rootIssueStore.issues.addIssue([res]);
+          return res;
+        })
+        .catch(() => {});
     }
 
     // add identifiers to map
@@ -307,20 +319,20 @@ export class IssueStore implements IIssueStore {
     rootWorkItemDetailStore.addSubscription(issueId, issue.is_subscribed);
 
     // fetch issue activity
-    rootWorkItemDetailStore.activity.fetchActivities(workspaceSlug, projectId, issueId);
+    void rootWorkItemDetailStore.activity.fetchActivities(workspaceSlug, projectId, issueId);
 
     // fetch issue comments
-    rootWorkItemDetailStore.comment.fetchComments(workspaceSlug, projectId, issueId);
+    void rootWorkItemDetailStore.comment.fetchComments(workspaceSlug, projectId, issueId);
 
     // fetch sub issues
-    rootWorkItemDetailStore.subIssues.fetchSubIssues(workspaceSlug, projectId, issueId);
+    void rootWorkItemDetailStore.subIssues.fetchSubIssues(workspaceSlug, projectId, issueId);
 
     // fetch issue relations
-    rootWorkItemDetailStore.relation.fetchRelations(workspaceSlug, projectId, issueId);
+    void rootWorkItemDetailStore.relation.fetchRelations(workspaceSlug, projectId, issueId);
 
     // fetching states
     // TODO: check if this function is required
-    rootWorkItemDetailStore.rootIssueStore.rootStore.state.fetchProjectStates(workspaceSlug, projectId);
+    void rootWorkItemDetailStore.rootIssueStore.rootStore.state.fetchProjectStates(workspaceSlug, projectId);
 
     return issue;
   };
