@@ -26,6 +26,14 @@ export class TaskToCreateDto {
   @IsArray()
   @IsString({ each: true })
   dependencies?: string[];
+
+  @IsOptional()
+  @IsString()
+  github_link?: string;
+
+  @IsOptional()
+  @IsString()
+  agent?: string;
 }
 
 export class ConfirmOptionsDto {

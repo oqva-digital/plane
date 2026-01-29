@@ -13,6 +13,8 @@ export interface WorkItem {
   blocked_by?: string[];
   blocking?: string[];
   start_date?: string | null;
+  github_link?: string | null;
+  agent?: string | null;
   [key: string]: unknown;
 }
 
@@ -41,6 +43,8 @@ export interface CreateWorkItemBody {
   blocked_by?: string[];
   blocking?: string[];
   start_date?: string;
+  github_link?: string;
+  agent?: string;
 }
 
 export interface UpdateWorkItemBody {

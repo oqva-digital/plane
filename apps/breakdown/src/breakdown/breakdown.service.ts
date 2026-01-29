@@ -235,8 +235,10 @@ export class BreakdownService {
     const link = dto.options?.link_to_parent !== false;
     let parent: string | undefined;
     let parentLabels: string[] = []; // Labels from parent work item
+    let parentGithubLink: string | undefined;
+    let parentAgent: string | undefined;
 
-    // Fetch parent work item to get its labels and UUID
+    // Fetch parent work item to get its labels, github_link, agent and UUID
     if (dto.parent_work_item_id) {
       try {
         const parentWorkItem = await this.plane.getWorkItem(
@@ -251,6 +253,14 @@ export class BreakdownService {
           parentLabels = parentWorkItem.labels.map((l) => l.id);
         } else if (parentWorkItem.label_ids && parentWorkItem.label_ids.length > 0) {
           parentLabels = parentWorkItem.label_ids;
+        }
+
+        // Extract parent github_link and agent (inherit to children)
+        if (parentWorkItem.github_link && parentWorkItem.github_link.trim()) {
+          parentGithubLink = parentWorkItem.github_link.trim();
+        }
+        if (parentWorkItem.agent && parentWorkItem.agent.trim()) {
+          parentAgent = parentWorkItem.agent.trim();
         }
       } catch (e) {
         console.error(`[Confirm] Failed to fetch parent work item ${dto.parent_work_item_id}:`, e);
@@ -326,6 +336,15 @@ export class BreakdownService {
       }
       if (parent && link) {
         body.parent = parent;
+      }
+      // Inherit github_link and agent from parent if task does not have its own
+      const githubLink = t.github_link?.trim() || parentGithubLink;
+      if (githubLink) {
+        body.github_link = githubLink;
+      }
+      const agent = t.agent?.trim() || parentAgent;
+      if (agent) {
+        body.agent = agent;
       }
       // Set incremental start_date for ordering in Plane
       body.start_date = calculateStartDate(i);
