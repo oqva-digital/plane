@@ -52,7 +52,7 @@ export class TaskBreakdownService {
    */
   async generateExpand(payload: ITaskBreakdownExpandRequest, apiKey: string): Promise<ITaskBreakdownResponse> {
     return this.axiosInstance
-      .post("/expand", payload, {
+      .post("/breakdown/expand", payload, {
         headers: {
           "X-Breakdown-API-Key": apiKey,
         },

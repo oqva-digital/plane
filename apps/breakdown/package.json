@@ -1,0 +1,40 @@
+{
+  "name": "breakdown",
+  "version": "1.0.0",
+  "license": "AGPL-3.0",
+  "description": "AI task breakdown service for Plane",
+  "main": "dist/main.js",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main.js",
+    "check:lint": "eslint . --cache --cache-location node_modules/.cache/eslint/ --max-warnings=160",
+    "check:types": "tsc --noEmit",
+    "check:format": "prettier . --cache --check",
+    "fix:lint": "eslint . --cache --cache-location node_modules/.cache/eslint/ --fix --max-warnings=160",
+    "fix:format": "prettier . --cache --write",
+    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
+  },
+  "dependencies": {
+    "@nestjs/axios": "^3.0.2",
+    "@nestjs/common": "^10.4.15",
+    "@nestjs/config": "^3.2.3",
+    "@nestjs/core": "^10.4.15",
+    "@nestjs/platform-express": "^10.4.15",
+    "axios": "catalog:",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "task-master-ai": "^0.42.0",
+    "turndown": "^7.2.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.4.9",
+    "@plane/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/turndown": "^5.0.6",
+    "typescript": "catalog:"
+  }
+}

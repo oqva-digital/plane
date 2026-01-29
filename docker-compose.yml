@@ -105,6 +105,25 @@ services:
         DOCKER_BUILDKIT: 1
     restart: always
 
+  task-breakdown:
+    container_name: task-breakdown
+    build:
+      context: .
+      dockerfile: ./apps/breakdown/Dockerfile.breakdown
+      args:
+        DOCKER_BUILDKIT: 1
+    restart: always
+    env_file:
+      - .env
+    environment:
+      # Internal hostname when self-hosted. Override for Plane cloud.
+      PLANE_API_URL: ${PLANE_API_URL:-http://api:8000}
+      PLANE_API_KEY: ${PLANE_API_KEY}
+      BREAKDOWN_API_KEY: ${TASK_BREAKDOWN_API_KEY:-${BREAKDOWN_API_KEY}}
+      TASK_MASTER_STORAGE_PATH: /data
+    volumes:
+      - breakdown-data:/data
+
   plane-db:
     container_name: plane-db
     image: postgres:15.7-alpine
@@ -175,3 +194,4 @@ volumes:
   redisdata:
   uploads:
   rabbitmq_data:
+  breakdown-data:
