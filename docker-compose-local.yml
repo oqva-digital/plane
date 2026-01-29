@@ -212,7 +212,6 @@ services:
     environment:
       PLANE_API_URL: ${PLANE_API_URL:-http://api:8000}
       PLANE_API_KEY: ${PLANE_API_KEY}
-      BREAKDOWN_API_KEY: ${TASK_BREAKDOWN_API_KEY:-${BREAKDOWN_API_KEY}}
       TASK_MASTER_STORAGE_PATH: /data
     volumes:
       - breakdown-data:/data

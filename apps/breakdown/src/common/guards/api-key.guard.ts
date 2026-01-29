@@ -20,7 +20,7 @@ export class ApiKeyGuard implements CanActivate {
         }
         return undefined;
       })();
-    const expected = this.config.get<string>("BREAKDOWN_API_KEY");
+    const expected = this.config.get<string>("TASK_BREAKDOWN_API_KEY");
     if (!expected || key !== expected) {
       throw new UnauthorizedException("Invalid or missing API key");
     }

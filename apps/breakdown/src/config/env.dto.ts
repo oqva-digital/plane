@@ -1,11 +1,11 @@
-import { IsOptional, IsString, IsNumber, Min } from "class-validator";
+import { IsOptional, IsString, IsNumber, Min, MinLength } from "class-validator";
 import { Transform } from "class-transformer";
 
 export class EnvDto {
   @IsString({ message: "PLANE_API_URL must be a string" })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => value || "https://api.plane.so")
-  PLANE_API_URL?: string = "https://api.plane.so";
+  PLANE_API_URL?: string;
 
   @IsString({ message: "PLANE_API_KEY is required" })
   PLANE_API_KEY!: string;
@@ -18,8 +18,9 @@ export class EnvDto {
   @IsOptional()
   OPENAI_API_KEY?: string;
 
-  @IsString({ message: "BREAKDOWN_API_KEY is required" })
-  BREAKDOWN_API_KEY!: string;
+  @IsString({ message: "TASK_BREAKDOWN_API_KEY is required" })
+  @MinLength(1, { message: "TASK_BREAKDOWN_API_KEY must not be empty" })
+  TASK_BREAKDOWN_API_KEY!: string;
 
   @IsString()
   @IsOptional()

@@ -38,7 +38,7 @@
 3. **Edit `.env`**
    - Set at least: `POSTGRES_*`, `SECRET_KEY` (or leave generated), `LIVE_SERVER_SECRET_KEY`, `WEB_URL`, `CORS_ALLOWED_ORIGINS`, `RABBITMQ_*`, `AWS_*`.
    - Optional: `TUNNEL_TOKEN` for Cloudflare Tunnel — `./run-oqva.sh start` will enable the `tunnel` profile when set.
-   - For AI task breakdown: `BREAKDOWN_API_URL` (e.g. `https://plane.example.com/breakdown/api`), `TASK_BREAKDOWN_API_KEY`, `PLANE_API_KEY`, and at least one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GOOGLE_API_KEY`.
+   - For AI task breakdown: `TASK_BREAKDOWN_API_URL` (e.g. `https://plane.example.com/breakdown/api`), `TASK_BREAKDOWN_API_KEY`, `PLANE_API_KEY`, and at least one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GOOGLE_API_KEY`.
 
 4. **Start**
 

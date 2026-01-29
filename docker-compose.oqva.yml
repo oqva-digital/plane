@@ -11,7 +11,7 @@ services:
         VITE_SPACE_BASE_URL: ${WEB_URL:-}
         VITE_LIVE_BASE_URL: ${WEB_URL:-}
         VITE_WEB_BASE_URL: ${WEB_URL:-}
-        VITE_BREAKDOWN_API_URL: ${BREAKDOWN_API_URL:-}
+        VITE_BREAKDOWN_API_URL: ${TASK_BREAKDOWN_API_URL:-}
         VITE_BREAKDOWN_API_KEY: ${TASK_BREAKDOWN_API_KEY:-}
 
   admin:
@@ -39,7 +39,6 @@ services:
       # Internal Docker hostname. No proxy - direct container-to-container.
       PLANE_API_URL: ${PLANE_API_URL:-http://api:8000}
       PLANE_API_KEY: ${PLANE_API_KEY}
-      BREAKDOWN_API_KEY: ${TASK_BREAKDOWN_API_KEY:-${BREAKDOWN_API_KEY}}
       TASK_MASTER_STORAGE_PATH: /data
 
   live:
