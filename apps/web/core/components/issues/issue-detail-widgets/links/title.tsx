@@ -1,6 +1,6 @@
-import type { FC } from "react";
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { observer } from "mobx-react";
+import { FileText } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import type { TIssueServiceType } from "@plane/types";
@@ -24,6 +24,7 @@ export const IssueLinksCollapsibleTitle = observer(function IssueLinksCollapsibl
   // store hooks
   const {
     issue: { getIssueById },
+    toggleAddPageModal,
   } = useIssueDetail(issueServiceType);
 
   // derived values
@@ -47,7 +48,23 @@ export const IssueLinksCollapsibleTitle = observer(function IssueLinksCollapsibl
       title={t("common.links")}
       indicatorElement={indicatorElement}
       actionItemElement={
-        !disabled && <IssueLinksActionButton issueServiceType={issueServiceType} disabled={disabled} />
+        !disabled && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className="grid h-7 w-7 place-items-center rounded-sm p-1 outline-none duration-300 hover:bg-surface-2"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleAddPageModal(true);
+              }}
+              title="Add page"
+            >
+              <FileText className="h-4 w-4" />
+            </button>
+            <IssueLinksActionButton issueServiceType={issueServiceType} disabled={disabled} />
+          </div>
+        )
       }
     />
   );

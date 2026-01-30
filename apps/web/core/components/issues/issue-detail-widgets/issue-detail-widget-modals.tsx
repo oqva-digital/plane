@@ -1,5 +1,3 @@
-import type { FC } from "react";
-import React from "react";
 import { observer } from "mobx-react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { ISearchIssueResponse, TIssue, TIssueServiceType, TWorkItemWidgets } from "@plane/types";
@@ -10,7 +8,7 @@ import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 // plane web imports
 import { WorkItemAdditionalWidgetModals } from "@/plane-web/components/issues/issue-detail-widgets/modals";
 // local imports
-import { IssueLinkCreateUpdateModal } from "../issue-detail/links/create-update-link-modal";
+import { AddPageModal, IssueLinkCreateUpdateModal } from "../issue-detail/links";
 // helpers
 import { CreateUpdateIssueModal } from "../issue-modal/modal";
 import { useLinkOperations } from "./links/helper";
@@ -29,8 +27,11 @@ export const IssueDetailWidgetModals = observer(function IssueDetailWidgetModals
   // store hooks
   const {
     isIssueLinkModalOpen,
+    isAddPageModalOpen,
     toggleIssueLinkModal: toggleIssueLinkModalStore,
+    toggleAddPageModal,
     setIssueLinkData,
+    link: { getLinksByIssueId, getLinkById },
     isCreateIssueModalOpen,
     toggleCreateIssueModal,
     isSubIssuesModalOpen,
@@ -97,6 +98,15 @@ export const IssueDetailWidgetModals = observer(function IssueDetailWidgetModals
     setIssueLinkData(null);
   };
 
+  const handleAddPageModalOnClose = () => {
+    toggleAddPageModal(false);
+    setLastWidgetAction("links");
+  };
+
+  const existingLinkUrls = (getLinksByIssueId(issueId) ?? [])
+    .map((linkId) => getLinkById(linkId)?.url)
+    .filter((url): url is string => !!url);
+
   const handleRelationOnClose = () => {
     setRelationKey(null);
     toggleRelationModal(null, null);
@@ -152,12 +162,28 @@ export const IssueDetailWidgetModals = observer(function IssueDetailWidgetModals
   return (
     <>
       {!hideWidgets?.includes("links") && (
-        <IssueLinkCreateUpdateModal
-          isModalOpen={isIssueLinkModalOpen}
-          handleOnClose={handleIssueLinkModalOnClose}
-          linkOperations={handleLinkOperations}
-          issueServiceType={issueServiceType}
-        />
+        <>
+          <IssueLinkCreateUpdateModal
+            isModalOpen={isIssueLinkModalOpen}
+            handleOnClose={handleIssueLinkModalOnClose}
+            linkOperations={handleLinkOperations}
+            issueServiceType={issueServiceType}
+          />
+          <AddPageModal
+            isOpen={isAddPageModalOpen}
+            handleClose={handleAddPageModalOnClose}
+            workspaceSlug={workspaceSlug}
+            projectId={projectId}
+            issueId={issueId}
+            onAddLinks={async (pages) => {
+              for (const page of pages) {
+                await handleLinkOperations.create(page);
+              }
+            }}
+            existingLinkUrls={existingLinkUrls}
+            issueServiceType={issueServiceType}
+          />
+        </>
       )}
 
       {shouldRenderCreateUpdateModal && (
