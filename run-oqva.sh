@@ -104,8 +104,8 @@ function install_oqva() {
         fi
     fi
 
-    # apps: web, api, space, admin, live — same list as setup.sh
-    for svc in web api space admin live; do
+    # apps: web, api, space, admin, live, breakdown
+    for svc in web api space admin live breakdown; do
         copy_env_if_missing "$SCRIPT_DIR/apps/$svc/.env.example" "$SCRIPT_DIR/apps/$svc/.env" || exit 1
     done
 
@@ -130,19 +130,6 @@ function install_oqva() {
     echo ""
 }
 
-# --- Ensure shared network exists (for task-breakdown integration)
-function ensureSharedNetwork() {
-    if ! docker network inspect plane-shared &>/dev/null; then
-        echo "Creating shared network: plane-shared"
-        docker network create plane-shared
-        if [ $? -eq 0 ]; then
-            echo "   Network 'plane-shared' created successfully"
-        else
-            echo "   Warning: Failed to create network 'plane-shared'. Continuing anyway."
-        fi
-    fi
-}
-
 # --- Start: enable tunnel profile if TUNNEL_TOKEN set; up -d; wait migrator and API
 function startServices() {
     local tok
@@ -150,9 +137,6 @@ function startServices() {
     if [ -n "$tok" ]; then
         export COMPOSE_PROFILES=tunnel
     fi
-
-    # Ensure shared network exists before starting services
-    ensureSharedNetwork
 
     cd "$SCRIPT_DIR" || exit 1
     /bin/bash -c "$COMPOSE_CMD $COMPOSE_FILES --env-file=$DOCKER_ENV_PATH up -d"
@@ -274,6 +258,7 @@ function viewLogs() {
             migrator) viewSpecificLogs "migrator";;
             proxy) viewSpecificLogs "proxy";;
             live)  viewSpecificLogs "live";;
+            breakdown) viewSpecificLogs "task-breakdown";;
             redis) viewSpecificLogs "plane-redis";;
             postgres) viewSpecificLogs "plane-db";;
             minio) viewSpecificLogs "plane-minio";;
@@ -287,8 +272,8 @@ function viewLogs() {
     echo ""
     echo "Select a service for logs:"
     echo "   1) Web    2) Space   3) API    4) Worker  5) Beat-Worker"
-    echo "   6) Migrator  7) Proxy  8) Live  9) Redis  10) Postgres"
-    echo "  11) Minio  12) RabbitMQ  13) Tunnel  0) Back"
+    echo "   6) Migrator  7) Proxy  8) Live  9) Breakdown  10) Redis  11) Postgres"
+    echo "  12) Minio  13) RabbitMQ  14) Tunnel  0) Back"
     echo ""
     read -p "Service [0]: " ch
     ch=${ch:-0}
@@ -301,11 +286,12 @@ function viewLogs() {
         6)  viewSpecificLogs "migrator";;
         7)  viewSpecificLogs "proxy";;
         8)  viewSpecificLogs "live";;
-        9)  viewSpecificLogs "plane-redis";;
-        10) viewSpecificLogs "plane-db";;
-        11) viewSpecificLogs "plane-minio";;
-        12) viewSpecificLogs "plane-mq";;
-        13) viewSpecificLogs "tunnel";;
+        9)  viewSpecificLogs "task-breakdown";;
+        10) viewSpecificLogs "plane-redis";;
+        11) viewSpecificLogs "plane-db";;
+        12) viewSpecificLogs "plane-minio";;
+        13) viewSpecificLogs "plane-mq";;
+        14) viewSpecificLogs "tunnel";;
         0)  ;;
         *)  echo "Invalid."
     esac

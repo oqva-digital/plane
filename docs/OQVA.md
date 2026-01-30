@@ -31,13 +31,14 @@
    ```
 
    - Creates root `.env` from `.env.example` or `deployments/cli/community/variables.env` if missing.
-   - Creates `apps/{web,api,space,admin,live}/.env` from each `.env.example` if missing.
+   - Creates `apps/{web,api,space,admin,live,breakdown}/.env` from each `.env.example` if missing.
    - Generates `SECRET_KEY` in `apps/api/.env` if empty.
    - Builds all images with the OQVA override (including `WEB_URL` → `VITE_*` for frontends).
 
 3. **Edit `.env`**
    - Set at least: `POSTGRES_*`, `SECRET_KEY` (or leave generated), `LIVE_SERVER_SECRET_KEY`, `WEB_URL`, `CORS_ALLOWED_ORIGINS`, `RABBITMQ_*`, `AWS_*`.
    - Optional: `TUNNEL_TOKEN` for Cloudflare Tunnel — `./run-oqva.sh start` will enable the `tunnel` profile when set.
+   - For AI task breakdown: `TASK_BREAKDOWN_API_URL` (e.g. `https://plane.example.com/breakdown/api`), `TASK_BREAKDOWN_API_KEY`, `PLANE_API_KEY`, and at least one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GOOGLE_API_KEY`.
 
 4. **Start**
 
@@ -110,7 +111,7 @@ If you are not using `run-oqva.sh` or `docker-compose.oqva.yml`:
      - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET_NAME`
 
 3. **App `.env` files**
-   - Copy `.env.example` → `.env` for: `apps/web`, `apps/api`, `apps/space`, `apps/admin`, `apps/live`.
+   - Copy `.env.example` → `.env` for: `apps/web`, `apps/api`, `apps/space`, `apps/admin`, `apps/live`, `apps/breakdown`.
    - In `apps/api/.env`: ensure `SECRET_KEY` is set (generate if empty).
 
 4. **Build and start**
@@ -264,7 +265,7 @@ Register as instance admin at `/god-mode/` first, then sign in on the main app.
 
 ### Validation checklist
 
-- [ ] `docker compose ps` (or `./run-oqva.sh`-driven stack) shows `api`, `web`, `proxy`, `plane-db`, `plane-redis`, `plane-mq`, `plane-minio`, `plane-live` (and `plane-migrator` as exited); if `TUNNEL_TOKEN` is set, `tunnel` is running.
+- [ ] `docker compose ps` (or `./run-oqva.sh`-driven stack) shows `api`, `web`, `proxy`, `plane-db`, `plane-redis`, `plane-mq`, `plane-minio`, `plane-live`, `task-breakdown` (and `plane-migrator` as exited); if `TUNNEL_TOKEN` is set, `tunnel` is running.
 - [ ] `curl -s -o /dev/null -w "%{http_code}" http://localhost:${LISTEN_HTTP_PORT}/` returns 200 (or 3xx to login).
 - [ ] `curl -s -o /dev/null -w "%{http_code}" http://localhost:${LISTEN_HTTP_PORT}/api/instances/` returns 200 or 401 (not 5xx).
 - [ ] In the browser, API requests in the Network tab use the **public** `WEB_URL` (or `/api/...` on the same origin), not `http://localhost:8000` when you use a different domain.
@@ -284,14 +285,15 @@ The proxy (Caddy) maps these paths to the right service; no extra public ports a
 
 ### Internal ports (proxy → services)
 
-| Path / target                    | Service     | Port |
-| -------------------------------- | ----------- | ---- |
-| `/`                              | web         | 3000 |
-| `/spaces/*`                      | space       | 3000 |
-| `/god-mode/*`                    | admin       | 3000 |
-| `/live/*`                        | live        | 3000 |
-| `/api/*`, `/auth/*`, `/static/*` | api         | 8000 |
-| `/{BUCKET_NAME}/*`               | plane-minio | 9000 |
+| Path / target                    | Service        | Port |
+| -------------------------------- | -------------- | ---- |
+| `/`                              | web            | 3000 |
+| `/spaces/*`                      | space          | 3000 |
+| `/god-mode/*`                    | admin          | 3000 |
+| `/live/*`                        | live           | 3000 |
+| `/breakdown/*`                   | task-breakdown | 3003 |
+| `/api/*`, `/auth/*`, `/static/*` | api            | 8000 |
+| `/{BUCKET_NAME}/*`               | plane-minio    | 9000 |
 
 Other services are not exposed by the proxy: `plane-db` (5432), `plane-redis` (6379), `plane-mq` (5672, 15672 for management), `plane-minio` console (9090). Use `docker compose exec` or internal DNS if you need them.
 

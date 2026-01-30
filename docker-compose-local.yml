@@ -197,6 +197,29 @@ services:
       - plane-db
       - plane-redis
 
+  task-breakdown:
+    build:
+      context: .
+      dockerfile: ./apps/breakdown/Dockerfile.breakdown
+      args:
+        DOCKER_BUILDKIT: 1
+    restart: unless-stopped
+    networks:
+      - dev_env
+    env_file:
+      - .env
+      - apps/breakdown/.env
+    environment:
+      PLANE_API_URL: ${PLANE_API_URL:-http://api:8000}
+      PLANE_API_KEY: ${PLANE_API_KEY}
+      TASK_MASTER_STORAGE_PATH: /data
+    volumes:
+      - breakdown-data:/data
+    depends_on:
+      - api
+    ports:
+      - "3003:3003"
+
   # proxy:
   #   build:
   #     context: ./apps/proxy
@@ -223,6 +246,7 @@ volumes:
   uploads:
   pgdata:
   rabbitmq_data:
+  breakdown-data:
 
 networks:
   dev_env:
