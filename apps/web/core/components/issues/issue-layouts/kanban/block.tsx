@@ -16,14 +16,17 @@ import { EIssueServiceType } from "@plane/types";
 import { ControlLink, DropIndicator } from "@plane/ui";
 import { cn, generateWorkItemLink } from "@plane/utils";
 // components
+import { MultipleSelectEntityAction } from "@/components/core/multiple-select";
 import RenderIfVisible from "@/components/core/render-if-visible-HOC";
 import { HIGHLIGHT_CLASS, getIssueBlockId } from "@/components/issues/issue-layouts/utils";
 // helpers
 // hooks
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useKanbanView } from "@/hooks/store/use-kanban-view";
+import { useLongPress } from "@/hooks/use-long-press";
 import { useProject } from "@/hooks/store/use-project";
 import useIssuePeekOverviewRedirection from "@/hooks/use-issue-peek-overview-redirection";
+import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 import { usePlatformOS } from "@/hooks/use-platform-os";
 // plane web components
 import { IssueIdentifier } from "@/plane-web/components/issues/issue-details/issue-identifier";
@@ -48,6 +51,7 @@ interface IssueBlockProps {
   scrollableContainerRef?: MutableRefObject<HTMLDivElement | null>;
   shouldRenderByDefault?: boolean;
   isEpic?: boolean;
+  selectionHelpers?: TSelectionHelper;
 }
 
 interface IssueDetailsBlockProps {
@@ -58,10 +62,22 @@ interface IssueDetailsBlockProps {
   quickActions: TRenderQuickActions;
   isReadOnly: boolean;
   isEpic?: boolean;
+  selectionHelpers?: TSelectionHelper;
+  groupId: string;
 }
 
 const KanbanIssueDetailsBlock = observer(function KanbanIssueDetailsBlock(props: IssueDetailsBlockProps) {
-  const { cardRef, issue, updateIssue, quickActions, isReadOnly, displayProperties, isEpic = false } = props;
+  const {
+    cardRef,
+    issue,
+    updateIssue,
+    quickActions,
+    isReadOnly,
+    displayProperties,
+    isEpic = false,
+    selectionHelpers,
+    groupId,
+  } = props;
   // refs
   const menuActionRef = useRef<HTMLDivElement | null>(null);
   // states
@@ -72,10 +88,18 @@ const KanbanIssueDetailsBlock = observer(function KanbanIssueDetailsBlock(props:
   const customActionButton = (
     <div
       ref={menuActionRef}
+      role="button"
+      tabIndex={0}
       className={`flex items-center h-full w-full cursor-pointer rounded-sm p-1 text-placeholder hover:bg-layer-1 ${
         isMenuActive ? "bg-layer-1 text-primary" : "text-secondary"
       }`}
       onClick={() => setIsMenuActive(!isMenuActive)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setIsMenuActive((prev) => !prev);
+        }
+      }}
     >
       <MoreHorizontal className="h-3.5 w-3.5" />
     </div>
@@ -93,28 +117,66 @@ const KanbanIssueDetailsBlock = observer(function KanbanIssueDetailsBlock(props:
 
   return (
     <>
-      <div className="relative">
-        {issue.project_id && (
-          <IssueIdentifier
-            issueId={issue.id}
-            projectId={issue.project_id}
-            size="xs"
-            variant="tertiary"
-            displayProperties={displayProperties}
-          />
+      <div className="flex items-start gap-2 min-w-0">
+        {selectionHelpers && groupId && !selectionHelpers.isSelectionDisabled && (
+          <div
+            role="button"
+            tabIndex={0}
+            data-issue-select-checkbox-area
+            className={cn(
+              "flex-shrink-0 grid place-items-center pt-0.5",
+              "opacity-0 pointer-events-none group-hover/kanban-block:opacity-100 group-hover/kanban-block:pointer-events-auto transition-opacity",
+              {
+                "opacity-100 pointer-events-auto": selectionHelpers.getIsEntitySelected(issue.id),
+              }
+            )}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
+          >
+            <MultipleSelectEntityAction groupId={groupId} id={issue.id} selectionHelpers={selectionHelpers} />
+          </div>
         )}
-        <div
-          className={cn("absolute -top-1 right-0", {
-            "hidden group-hover/kanban-block:block": !isMobile,
-            "!block": isMenuActive,
-          })}
-          onClick={handleEventPropagation}
-        >
-          {quickActions({
-            issue,
-            parentRef: cardRef,
-            customActionButton,
-          })}
+        <div className="min-w-0 flex-1">
+          {issue.project_id && (
+            <IssueIdentifier
+              issueId={issue.id}
+              projectId={issue.project_id}
+              size="xs"
+              variant="tertiary"
+              displayProperties={displayProperties}
+            />
+          )}
+          <div
+            role="button"
+            tabIndex={0}
+            className={cn("absolute top-2 right-2", {
+              "hidden group-hover/kanban-block:block": !isMobile,
+              "!block": isMenuActive,
+            })}
+            onClick={handleEventPropagation}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleEventPropagation(e as unknown as React.MouseEvent);
+              }
+            }}
+          >
+            {quickActions({
+              issue,
+              parentRef: cardRef,
+              customActionButton,
+              selectionHelpers,
+              groupId,
+            })}
+          </div>
         </div>
       </div>
 
@@ -162,6 +224,7 @@ export const KanbanIssueBlock = observer(function KanbanIssueBlock(props: IssueB
     scrollableContainerRef,
     shouldRenderByDefault,
     isEpic = false,
+    selectionHelpers,
   } = props;
 
   const cardRef = useRef<HTMLAnchorElement | null>(null);
@@ -198,6 +261,31 @@ export const KanbanIssueBlock = observer(function KanbanIssueBlock(props: IssueB
     isEpic,
     isArchived: !!issue?.archived_at,
   });
+
+  const handleLongPressSelect = () => {
+    if (!selectionHelpers || !issue || !issue.project_id) return;
+    selectionHelpers.enterSelectionMode();
+    selectionHelpers.handleEntitySelection({ entityID: issue.id, groupID: groupId }, false, "force-add");
+  };
+
+  const {
+    longPressHandledRef,
+    onPointerDown: onLongPressPointerDown,
+    onPointerUp: onLongPressPointerUp,
+    onPointerCancel: onLongPressPointerCancel,
+    onPointerLeave: onLongPressPointerLeave,
+  } = useLongPress(handleLongPressSelect, { delayMs: 1000 });
+
+  const handleRowClick = (e: React.MouseEvent) => {
+    if (longPressHandledRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      longPressHandledRef.current = false;
+      return;
+    }
+    if ((e.target as Element).closest?.("[data-issue-select-checkbox-area]")) return;
+    handleIssuePeekOverview(issue);
+  };
 
   useOutsideClickDetector(cardRef, () => {
     cardRef?.current?.classList?.remove(HIGHLIGHT_CLASS);
@@ -240,7 +328,14 @@ export const KanbanIssueBlock = observer(function KanbanIssueBlock(props: IssueB
         },
       })
     );
-  }, [cardRef?.current, issue?.id, isDragAllowed, canDropOverIssue, setIsCurrentBlockDragging, setIsDraggingOverBlock]);
+  }, [
+    issue?.id,
+    isDragAllowed,
+    canDropOverIssue,
+    setIsCurrentBlockDragging,
+    setIsDraggingOverBlock,
+    setIsKanbanDragging,
+  ]);
 
   if (!issue) return null;
 
@@ -272,9 +367,14 @@ export const KanbanIssueBlock = observer(function KanbanIssueBlock(props: IssueB
             "block rounded-lg border outline-[0.5px] outline-transparent shadow-raised-100 w-full border-subtle bg-layer-2 text-13 transition-all p-3 hover:shadow-raised-200 hover:border-strong",
             { "hover:cursor-pointer": isDragAllowed },
             { "border border-accent-strong hover:border-accent-strong": getIsIssuePeeked(issue.id) },
-            { "bg-layer-1 z-[100]": isCurrentBlockDragging }
+            { "bg-layer-1 z-[100]": isCurrentBlockDragging },
+            { "border-2 border-accent-primary": selectionHelpers?.getIsEntitySelected(issue.id) }
           )}
-          onClick={() => handleIssuePeekOverview(issue)}
+          onClick={handleRowClick}
+          onPointerDown={onLongPressPointerDown}
+          onPointerUp={onLongPressPointerUp}
+          onPointerCancel={onLongPressPointerCancel}
+          onPointerLeave={onLongPressPointerLeave}
           disabled={!!issue?.tempId}
         >
           <RenderIfVisible
@@ -293,6 +393,8 @@ export const KanbanIssueBlock = observer(function KanbanIssueBlock(props: IssueB
               quickActions={quickActions}
               isReadOnly={!canEditIssueProperties}
               isEpic={isEpic}
+              selectionHelpers={selectionHelpers}
+              groupId={groupId}
             />
           </RenderIfVisible>
         </ControlLink>

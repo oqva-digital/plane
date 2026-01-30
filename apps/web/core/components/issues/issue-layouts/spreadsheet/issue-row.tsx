@@ -22,6 +22,7 @@ import RenderIfVisible from "@/components/core/render-if-visible-HOC";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useIssues } from "@/hooks/store/use-issues";
 import { useProject } from "@/hooks/store/use-project";
+import { useLongPress } from "@/hooks/use-long-press";
 import useIssuePeekOverviewRedirection from "@/hooks/use-issue-peek-overview-redirection";
 import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 import { usePlatformOS } from "@/hooks/use-platform-os";
@@ -92,9 +93,10 @@ export const SpreadsheetIssueRow = observer(function SpreadsheetIssueRow(props: 
             style={{ height: "calc(2.75rem - 1px)" }}
           />
         }
-        classNames={cn("bg-surface-1 transition-[background-color]", {
+        classNames={cn("bg-surface-1 transition-[background-color] border border-transparent", {
           "group selected-issue-row": isIssueSelected,
-          "border-[0.5px] border-strong-1": isIssueActive,
+          "border-2 border-accent-primary": isIssueSelected,
+          "border-[0.5px] border-strong-1": isIssueActive && !isIssueSelected,
         })}
         verticalOffset={100}
         shouldRecordHeights={false}
@@ -228,6 +230,31 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
       <MoreHorizontal className="h-3.5 w-3.5" />
     </div>
   );
+
+  const handleLongPressSelect = () => {
+    if (
+      !issueDetail ||
+      !canEditProperties(issueDetail.project_id ?? undefined) ||
+      !projectId ||
+      issueDetail.project_id !== projectId
+    )
+      return;
+    selectionHelpers.enterSelectionMode();
+    selectionHelpers.handleEntitySelection(
+      { entityID: issueDetail.id, groupID: SPREADSHEET_SELECT_GROUP },
+      false,
+      "force-add"
+    );
+  };
+
+  const {
+    longPressHandledRef,
+    onPointerDown: onLongPressPointerDown,
+    onPointerUp: onLongPressPointerUp,
+    onPointerCancel: onLongPressPointerCancel,
+    onPointerLeave: onLongPressPointerLeave,
+  } = useLongPress(handleLongPressSelect, { delayMs: 1000 });
+
   if (!issueDetail) return null;
 
   const handleToggleExpand = (e: MouseEvent<HTMLButtonElement>) => {
@@ -261,6 +288,17 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
     isEpic,
   });
 
+  const handleRowClick = (e: React.MouseEvent) => {
+    if (longPressHandledRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      longPressHandledRef.current = false;
+      return;
+    }
+    if ((e.target as Element).closest?.("[data-issue-select-checkbox-area]")) return;
+    handleIssuePeekOverview(issueDetail);
+  };
+
   return (
     <>
       {/* Single sticky column containing both identifier and workitem */}
@@ -272,7 +310,11 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
       >
         <ControlLink
           href={workItemLink}
-          onClick={() => handleIssuePeekOverview(issueDetail)}
+          onClick={handleRowClick}
+          onPointerDown={onLongPressPointerDown}
+          onPointerUp={onLongPressPointerUp}
+          onPointerCancel={onLongPressPointerCancel}
+          onPointerLeave={onLongPressPointerLeave}
           className="outline-none"
           disabled={!!issueDetail?.tempId}
         >
@@ -287,6 +329,48 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
               }
             )}
           >
+            {/* select checkbox - leftmost */}
+            {projectId && canSelectIssues && (
+              <Tooltip
+                tooltipContent={
+                  <>
+                    Only work items within the current
+                    <br />
+                    project can be selected.
+                  </>
+                }
+                disabled={issueDetail.project_id === projectId}
+              >
+                <div
+                  className={cn(
+                    "flex-shrink-0 grid place-items-center w-5 mr-2",
+                    "opacity-0 pointer-events-none group-hover/list-block:opacity-100 group-hover/list-block:pointer-events-auto transition-opacity",
+                    { "opacity-100 pointer-events-auto": isIssueSelected }
+                  )}
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
+                  data-issue-select-checkbox-area
+                >
+                  <MultipleSelectEntityAction
+                    groupId={SPREADSHEET_SELECT_GROUP}
+                    id={issueDetail.id}
+                    selectionHelpers={selectionHelpers}
+                    disabled={issueDetail.project_id !== projectId}
+                  />
+                </div>
+              </Tooltip>
+            )}
+
             {/* Identifier section - conditionally rendered */}
             {displayProperties?.key && (
               <div className="flex-shrink-0 flex items-center h-full min-w-24">
@@ -311,35 +395,6 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
                 "min-w-60": displayProperties?.key,
               })}
             >
-              {/* select checkbox */}
-              {projectId && canSelectIssues && (
-                <Tooltip
-                  tooltipContent={
-                    <>
-                      Only work items within the current
-                      <br />
-                      project can be selected.
-                    </>
-                  }
-                  disabled={issueDetail.project_id === projectId}
-                >
-                  <div className="flex-shrink-0 grid place-items-center w-3.5 mr-1 absolute left-1">
-                    <MultipleSelectEntityAction
-                      className={cn(
-                        "opacity-0 pointer-events-none group-hover/list-block:opacity-100 group-hover/list-block:pointer-events-auto transition-opacity",
-                        {
-                          "opacity-100 pointer-events-auto": isIssueSelected,
-                        }
-                      )}
-                      groupId={SPREADSHEET_SELECT_GROUP}
-                      id={issueDetail.id}
-                      selectionHelpers={selectionHelpers}
-                      disabled={issueDetail.project_id !== projectId}
-                    />
-                  </div>
-                </Tooltip>
-              )}
-
               {/* sub issues indentation */}
               {nestingLevel !== 0 && <div style={{ width: subIssueIndentation }} />}
 
@@ -391,6 +446,8 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
                     parentRef: cellRef,
                     customActionButton,
                     portalElement: portalElement.current,
+                    selectionHelpers,
+                    groupId: SPREADSHEET_SELECT_GROUP,
                   })}
                 </div>
               </div>

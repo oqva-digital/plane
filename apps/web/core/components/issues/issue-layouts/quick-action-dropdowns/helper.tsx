@@ -1,13 +1,15 @@
-import { useMemo } from "react";
-import { XCircle, ArchiveRestoreIcon } from "lucide-react";
+import { useCallback, useMemo } from "react";
+import { XCircle, ArchiveRestoreIcon, CheckSquare } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import { LinkIcon, CopyIcon, NewTabIcon, EditIcon, ArchiveIcon, TrashIcon } from "@plane/propel/icons";
+
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { EIssuesStoreType, TIssue } from "@plane/types";
 import type { TContextMenuItem } from "@plane/ui";
 import { copyUrlToClipboard, generateWorkItemLink } from "@plane/utils";
 // types
+import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 import { createCopyMenuWithDuplication } from "@/plane-web/components/issues/issue-layouts/quick-action-dropdowns";
 
 // Generic helper function to handle optional function calls gracefully
@@ -32,9 +34,9 @@ export function handleOptionalAction<T>(
 ): void {
   if (optionalFn) {
     if (param !== undefined) {
-      (optionalFn as (param: T) => void | Promise<void>)(param);
+      void (optionalFn as (param: T) => void | Promise<void>)(param);
     } else {
-      (optionalFn as () => void | Promise<void>)();
+      void (optionalFn as () => void | Promise<void>)();
     }
   } else {
     setToast({
@@ -72,6 +74,9 @@ export interface MenuItemFactoryProps {
   cycleId?: string;
   moduleId?: string;
   storeType?: EIssuesStoreType;
+  // Selection mode (for bulk actions)
+  selectionHelpers?: TSelectionHelper;
+  groupId?: string;
 }
 
 // Common action handlers hook
@@ -113,6 +118,7 @@ export const useIssueActionHandlers = (props: MenuItemFactoryProps) => {
           title: "Restore success",
           message: "Your work item can be found in project work items.",
         });
+        return undefined;
       })
       .catch(() => {
         setToast({
@@ -150,6 +156,8 @@ export const useMenuItemFactory = (props: MenuItemFactoryProps) => {
     setArchiveIssueModal,
     setDuplicateWorkItemModal,
     handleRemoveFromView,
+    selectionHelpers,
+    groupId,
   } = props;
 
   const createEditMenuItem = (customEditAction?: () => void): TContextMenuItem => ({
@@ -196,7 +204,9 @@ export const useMenuItemFactory = (props: MenuItemFactoryProps) => {
     key: "copy-link",
     title: t("common.actions.copy_link"),
     icon: LinkIcon,
-    action: actionHandlers.handleCopyIssueLink,
+    action: () => {
+      void actionHandlers.handleCopyIssueLink();
+    },
   });
 
   const createRemoveFromCycleMenuItem = (): TContextMenuItem => ({
@@ -231,7 +241,9 @@ export const useMenuItemFactory = (props: MenuItemFactoryProps) => {
     key: "restore",
     title: "Restore",
     icon: ArchiveRestoreIcon,
-    action: actionHandlers.handleIssueRestore,
+    action: () => {
+      void actionHandlers.handleIssueRestore();
+    },
     shouldRender: isRestoringAllowed,
   });
 
@@ -245,6 +257,20 @@ export const useMenuItemFactory = (props: MenuItemFactoryProps) => {
     shouldRender: isDeletingAllowed,
   });
 
+  const selectLabel = t("common.actions.select");
+  const createSelectMenuItem = (): TContextMenuItem => ({
+    key: "select",
+    title: selectLabel.startsWith("common.") ? "Select" : selectLabel,
+    icon: CheckSquare,
+    action: () => {
+      if (selectionHelpers && groupId) {
+        selectionHelpers.enterSelectionMode();
+        selectionHelpers.handleEntitySelection({ entityID: issue.id, groupID: groupId }, false, "force-add");
+      }
+    },
+    shouldRender: !!isEditingAllowed && !!selectionHelpers && !!groupId,
+  });
+
   return {
     ...actionHandlers,
     createEditMenuItem,
@@ -256,6 +282,7 @@ export const useMenuItemFactory = (props: MenuItemFactoryProps) => {
     createArchiveMenuItem,
     createRestoreMenuItem,
     createDeleteMenuItem,
+    createSelectMenuItem,
   };
 };
 
@@ -265,6 +292,7 @@ export const useProjectIssueMenuItems = (props: MenuItemFactoryProps): TContextM
 
   return useMemo(
     () => [
+      factory.createSelectMenuItem(),
       factory.createEditMenuItem(),
       factory.createCopyMenuItem(),
       factory.createOpenInNewTabMenuItem(),
@@ -281,13 +309,14 @@ export const useWorkItemDetailMenuItems = (props: MenuItemFactoryProps): TContex
 
   return useMemo(
     () => [
+      factory.createSelectMenuItem(),
       factory.createCopyMenuItem(props.workspaceSlug),
       factory.createOpenInNewTabMenuItem(),
       factory.createArchiveMenuItem(),
       factory.createRestoreMenuItem(),
       factory.createDeleteMenuItem(),
     ],
-    [factory]
+    [factory, props.workspaceSlug]
   );
 };
 
@@ -309,18 +338,19 @@ export const useAllIssueMenuItems = (props: MenuItemFactoryProps): TContextMenuI
 
 export const useCycleIssueMenuItems = (props: MenuItemFactoryProps): TContextMenuItem[] => {
   const factory = useMenuItemFactory(props);
+  const { issue, cycleId, setIssueToEdit, setCreateUpdateIssueModal } = props;
 
-  const customEditAction = () => {
-    props.setIssueToEdit({
-      ...props.issue,
-      cycle_id: props.cycleId ?? null,
+  const customEditAction = useCallback(() => {
+    setIssueToEdit({
+      ...issue,
+      cycle_id: cycleId ?? null,
     });
-    props.setCreateUpdateIssueModal(true);
-  };
+    setCreateUpdateIssueModal(true);
+  }, [issue, cycleId, setIssueToEdit, setCreateUpdateIssueModal]);
 
   return useMemo(
     () => [
-      factory.createEditMenuItem(customEditAction),
+      factory.createEditMenuItem(customEditAction as () => void),
       factory.createCopyMenuItem(),
       factory.createOpenInNewTabMenuItem(),
       factory.createCopyLinkMenuItem(),
@@ -328,24 +358,25 @@ export const useCycleIssueMenuItems = (props: MenuItemFactoryProps): TContextMen
       factory.createArchiveMenuItem(),
       factory.createDeleteMenuItem(),
     ],
-    [factory, props.cycleId]
+    [factory, customEditAction]
   );
 };
 
 export const useModuleIssueMenuItems = (props: MenuItemFactoryProps): TContextMenuItem[] => {
   const factory = useMenuItemFactory(props);
+  const { issue, moduleId, setIssueToEdit, setCreateUpdateIssueModal } = props;
 
-  const customEditAction = () => {
-    props.setIssueToEdit({
-      ...props.issue,
-      module_ids: props.moduleId ? [props.moduleId] : [],
+  const customEditAction = useCallback(() => {
+    setIssueToEdit({
+      ...issue,
+      module_ids: moduleId ? [moduleId] : [],
     });
-    props.setCreateUpdateIssueModal(true);
-  };
+    setCreateUpdateIssueModal(true);
+  }, [issue, moduleId, setIssueToEdit, setCreateUpdateIssueModal]);
 
   return useMemo(
     () => [
-      factory.createEditMenuItem(customEditAction),
+      factory.createEditMenuItem(customEditAction as () => void),
       factory.createCopyMenuItem(),
       factory.createOpenInNewTabMenuItem(),
       factory.createCopyLinkMenuItem(),
@@ -353,7 +384,7 @@ export const useModuleIssueMenuItems = (props: MenuItemFactoryProps): TContextMe
       factory.createArchiveMenuItem(),
       factory.createDeleteMenuItem(),
     ],
-    [factory, props.moduleId]
+    [factory, customEditAction]
   );
 };
 

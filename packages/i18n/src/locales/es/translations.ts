@@ -697,6 +697,7 @@ export default {
     epics: "Epics",
     work_item: "Elemento de trabajo",
     work_items: "Elementos de trabajo",
+    selected: "seleccionado(s)",
     sub_work_item: "Sub-elemento de trabajo",
     add: "Agregar",
     warning: "Advertencia",
@@ -814,11 +815,14 @@ export default {
     },
     actions: {
       edit: "Editar",
+      select: "Seleccionar",
       make_a_copy: "Hacer una copia",
       open_in_new_tab: "Abrir en nueva pestaña",
       copy_link: "Copiar enlace",
       archive: "Archivar",
+      restore: "Restaurar",
       delete: "Eliminar",
+      delete_all: "Eliminar todo",
       remove_relation: "Eliminar relación",
       subscribe: "Suscribirse",
       unsubscribe: "Cancelar suscripción",
@@ -937,6 +941,10 @@ export default {
       label: "Eliminar {entity}",
       success: "{entity} eliminado correctamente",
       failed: "Error al eliminar {entity}",
+      confirm_bulk:
+        "¿Está seguro de que desea eliminar {count} elemento(s) de trabajo? Esta acción no se puede deshacer.",
+      bulk_success: "{count} elemento(s) de trabajo eliminado(s) correctamente.",
+      error: "Error al eliminar {entity}.",
     },
     update: {
       failed: "Error al actualizar {entity}",

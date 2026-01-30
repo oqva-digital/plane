@@ -12,9 +12,10 @@ import { cn, renderFormattedPayloadDate } from "@plane/utils";
 import { highlightIssueOnDrop } from "@/components/issues/issue-layouts/utils";
 // helpers
 import { MONTHS_LIST } from "@/constants/calendar";
+import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 // helpers
 // types
-import type { IProjectEpicsFilter } from "@/plane-web/store/issue/epic";
+import type { IProjectEpicsFilter as _IProjectEpicsFilter } from "@/plane-web/store/issue/epic";
 import type { ICycleIssuesFilter } from "@/store/issue/cycle";
 import type { IModuleIssuesFilter } from "@/store/issue/module";
 import type { IProjectIssuesFilter } from "@/store/issue/project";
@@ -40,12 +41,13 @@ type Props = {
     sourceDate: string | undefined,
     destinationDate: string | undefined
   ) => Promise<void>;
-  addIssuesToView?: (issueIds: string[]) => Promise<any>;
+  addIssuesToView?: (issueIds: string[]) => Promise<void>;
   readOnly?: boolean;
   selectedDate: Date;
   setSelectedDate: (date: Date) => void;
   canEditProperties: (projectId: string | undefined) => boolean;
   isEpic?: boolean;
+  selectionHelpers?: TSelectionHelper;
 };
 
 export const CalendarDayTile = observer(function CalendarDayTile(props: Props) {
@@ -68,6 +70,7 @@ export const CalendarDayTile = observer(function CalendarDayTile(props: Props) {
     setSelectedDate,
     canEditProperties,
     isEpic = false,
+    selectionHelpers,
   } = props;
 
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -114,7 +117,7 @@ export const CalendarDayTile = observer(function CalendarDayTile(props: Props) {
             }
           }
 
-          handleDragAndDrop(
+          void handleDragAndDrop(
             sourceData?.id,
             issueDetails?.project_id ?? undefined,
             sourceData?.date,
@@ -124,7 +127,7 @@ export const CalendarDayTile = observer(function CalendarDayTile(props: Props) {
         },
       })
     );
-  }, [dayTileRef?.current, formattedDatePayload]);
+  }, [formattedDatePayload, handleDragAndDrop, issues]);
 
   if (!formattedDatePayload) return null;
   const issueIds = groupedIssueIds?.[formattedDatePayload];
@@ -186,13 +189,23 @@ export const CalendarDayTile = observer(function CalendarDayTile(props: Props) {
               readOnly={readOnly}
               canEditProperties={canEditProperties}
               isEpic={isEpic}
+              selectionHelpers={selectionHelpers}
+              groupId={formattedDatePayload}
             />
           </div>
         </div>
 
         {/* Mobile view content */}
         <div
+          role="button"
+          tabIndex={0}
           onClick={() => setSelectedDate(date.date)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setSelectedDate(date.date);
+            }
+          }}
           className={cn(
             "text-13 py-2.5 h-full w-full font-medium mx-auto flex flex-col justify-start items-center md:hidden cursor-pointer opacity-80",
             {

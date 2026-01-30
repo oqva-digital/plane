@@ -22,6 +22,7 @@ import { KanbanColumnLoader } from "@/components/ui/loader/layouts/kanban-layout
 // hooks
 import { useKanbanView } from "@/hooks/store/use-kanban-view";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
+import type { TSelectionHelper as _TSelectionHelper } from "@/hooks/use-multiple-select";
 // types
 // parent components
 import { useWorkFlowFDragNDrop } from "@/plane-web/components/workflow";
@@ -63,6 +64,7 @@ export interface IKanBan {
   showEmptyGroup?: boolean;
   subGroupIndex?: number;
   isEpic?: boolean;
+  selectionHelpers?: _TSelectionHelper;
 }
 
 export const KanBan = observer(function KanBan(props: IKanBan) {
@@ -92,9 +94,10 @@ export const KanBan = observer(function KanBan(props: IKanBan) {
     dropErrorMessage,
     subGroupIndex = 0,
     isEpic = false,
+    selectionHelpers,
   } = props;
   // i18n
-  const { t } = useTranslation();
+  const { t: _t } = useTranslation();
   // store hooks
   const storeType = useIssueStoreType();
   const issueKanBanView = useKanbanView();
@@ -225,6 +228,7 @@ export const KanBan = observer(function KanBan(props: IKanBan) {
                     loadMoreIssues={loadMoreIssues}
                     handleOnDrop={handleOnDrop}
                     isEpic={isEpic}
+                    selectionHelpers={selectionHelpers}
                   />
                 </RenderIfVisible>
               )}

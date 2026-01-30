@@ -8,14 +8,19 @@ import { useParams } from "next/navigation";
 import { EIssueFilterType, EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import type { EIssuesStoreType } from "@plane/types";
 import { EIssueServiceType, EIssueLayoutTypes } from "@plane/types";
-//hooks
+// components
+import { MultipleSelectGroup, SelectionClearOnOutsideClick } from "@/components/core/multiple-select";
+// hooks
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useIssues } from "@/hooks/store/use-issues";
 import { useKanbanView } from "@/hooks/store/use-kanban-view";
+import { useMultipleSelectStore } from "@/hooks/store/use-multiple-select-store";
 import { useUserPermissions } from "@/hooks/store/user";
 import { useGroupIssuesDragNDrop } from "@/hooks/use-group-dragndrop";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { useIssuesActions } from "@/hooks/use-issues-actions";
+// plane web components
+import { IssueBulkOperationsRoot } from "@/plane-web/components/issues/bulk-operations";
 // store
 // ui
 // types
@@ -39,7 +44,7 @@ export type KanbanStoreType =
 
 export interface IBaseKanBanLayout {
   QuickActions: FC<IQuickActionProps>;
-  addIssuesToView?: (issueIds: string[]) => Promise<any>;
+  addIssuesToView?: (issueIds: string[]) => Promise<void>;
   canEditPropertiesBasedOnProject?: (projectId: string) => boolean;
   isCompletedCycle?: boolean;
   viewId?: string | undefined;
@@ -80,6 +85,7 @@ export const BaseKanBanRoot = observer(function BaseKanBanRoot(props: IBaseKanBa
   const [isDragOverDelete, setIsDragOverDelete] = useState(false);
 
   const { isDragging } = useKanbanView();
+  const { selectionModeEnabled } = useMultipleSelectStore();
 
   const displayFilters = issuesFilter?.issueFilters?.displayFilters;
   const displayProperties = issuesFilter?.issueFilters?.displayProperties;
@@ -90,19 +96,28 @@ export const BaseKanBanRoot = observer(function BaseKanBanRoot(props: IBaseKanBa
   const orderBy = displayFilters?.order_by;
 
   useEffect(() => {
-    fetchIssues("init-loader", { canGroup: true, perPageCount: sub_group_by ? 10 : 30 }, viewId);
+    void fetchIssues("init-loader", { canGroup: true, perPageCount: sub_group_by ? 10 : 30 }, viewId);
   }, [fetchIssues, storeType, group_by, sub_group_by, viewId]);
 
   const fetchMoreIssues = useCallback(
     (groupId?: string, subgroupId?: string) => {
       if (issues?.getIssueLoader(groupId, subgroupId) !== "pagination") {
-        fetchNextIssues(groupId, subgroupId);
+        void fetchNextIssues(groupId, subgroupId);
       }
     },
-    [fetchNextIssues]
+    [issues, fetchNextIssues]
   );
 
   const groupedIssueIds = issues?.groupedIssueIds;
+
+  const entities: Record<string, string[]> =
+    sub_group_by && groupedIssueIds && typeof Object.values(groupedIssueIds)[0] === "object"
+      ? Object.fromEntries(
+          Object.entries(groupedIssueIds as Record<string, Record<string, string[]>>).flatMap(([rowId, cols]) =>
+            Object.entries(cols ?? {}).map(([colId, issueIds]) => [`${rowId}__${colId}`, issueIds ?? []])
+          )
+        )
+      : ((groupedIssueIds ?? {}) as Record<string, string[]>);
 
   const userDisplayFilters = displayFilters || null;
 
@@ -111,6 +126,7 @@ export const BaseKanBanRoot = observer(function BaseKanBanRoot(props: IBaseKanBa
   const { enableInlineEditing, enableQuickAdd, enableIssueCreation } = issues?.viewFlags || {};
 
   const scrollableContainerRef = useRef<HTMLDivElement | null>(null);
+  const selectionAreaRef = useRef<HTMLDivElement | null>(null);
 
   // states
   const [draggedIssueId, setDraggedIssueId] = useState<string | undefined>(undefined);
@@ -176,7 +192,7 @@ export const BaseKanBanRoot = observer(function BaseKanBanRoot(props: IBaseKanBa
   }, [setIsDragOverDelete, setDraggedIssueId, setDeleteIssueModal]);
 
   const renderQuickActions: TRenderQuickActions = useCallback(
-    ({ issue, parentRef, customActionButton }) => (
+    ({ issue, parentRef, customActionButton, selectionHelpers, groupId }) => (
       <QuickActions
         parentRef={parentRef}
         customActionButton={customActionButton}
@@ -187,6 +203,8 @@ export const BaseKanBanRoot = observer(function BaseKanBanRoot(props: IBaseKanBa
         handleArchive={async () => archiveIssue && archiveIssue(issue.project_id, issue.id)}
         handleRestore={async () => restoreIssue && restoreIssue(issue.project_id, issue.id)}
         readOnly={!canEditProperties(issue.project_id ?? undefined) || isCompletedCycle}
+        selectionHelpers={selectionHelpers}
+        groupId={groupId}
       />
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -217,7 +235,7 @@ export const BaseKanBanRoot = observer(function BaseKanBanRoot(props: IBaseKanBa
         } else {
           collapsedGroups.push(value);
         }
-        updateFilters(projectId?.toString() ?? "", EIssueFilterType.KANBAN_FILTERS, {
+        void updateFilters(projectId?.toString() ?? "", EIssueFilterType.KANBAN_FILTERS, {
           [toggle]: collapsedGroups,
         });
       }
@@ -254,38 +272,55 @@ export const BaseKanBanRoot = observer(function BaseKanBanRoot(props: IBaseKanBa
         </div>
       </div>
       <IssueLayoutHOC layout={EIssueLayoutTypes.KANBAN}>
-        <div
-          className={`horizontal-scrollbar scrollbar-lg relative flex h-full w-full bg-surface-2 ${sub_group_by ? "vertical-scrollbar overflow-y-auto" : "overflow-x-auto overflow-y-hidden"}`}
-          ref={scrollableContainerRef}
+        <MultipleSelectGroup
+          containerRef={scrollableContainerRef}
+          entities={entities}
+          disabled={!selectionModeEnabled || isEpic}
         >
-          <div className="relative h-full w-max min-w-full bg-surface-2">
-            <div className="h-full w-max">
-              <KanBanView
-                issuesMap={issueMap}
-                groupedIssueIds={groupedIssueIds ?? {}}
-                getGroupIssueCount={issues.getGroupIssueCount}
-                displayProperties={displayProperties}
-                sub_group_by={sub_group_by}
-                group_by={group_by}
-                orderBy={orderBy}
-                updateIssue={updateIssue}
-                quickActions={renderQuickActions}
-                handleCollapsedGroups={handleCollapsedGroups}
-                collapsedGroups={collapsedGroups}
-                enableQuickIssueCreate={enableQuickAdd}
-                showEmptyGroup={userDisplayFilters?.show_empty_groups ?? true}
-                quickAddCallback={quickAddIssue}
-                disableIssueCreation={!enableIssueCreation || !isEditingAllowed || isCompletedCycle}
-                canEditProperties={canEditProperties}
-                addIssuesToView={addIssuesToView}
-                scrollableContainerRef={scrollableContainerRef}
-                handleOnDrop={handleOnDrop}
-                loadMoreIssues={fetchMoreIssues}
-                isEpic={isEpic}
-              />
-            </div>
-          </div>
-        </div>
+          {(helpers) => (
+            <SelectionClearOnOutsideClick
+              containerRef={selectionAreaRef}
+              onClearSelection={helpers.handleClearSelection}
+            >
+              <div ref={selectionAreaRef} className="flex h-full w-full flex-col overflow-hidden">
+                <IssueBulkOperationsRoot selectionHelpers={helpers} />
+                <div
+                  className={`horizontal-scrollbar scrollbar-lg relative flex min-h-0 flex-1 bg-surface-2 ${sub_group_by ? "vertical-scrollbar overflow-y-auto" : "overflow-x-auto overflow-y-hidden"}`}
+                  ref={scrollableContainerRef}
+                >
+                  <div className="relative h-full w-max min-w-full bg-surface-2">
+                    <div className="h-full w-max">
+                      <KanBanView
+                        issuesMap={issueMap}
+                        groupedIssueIds={groupedIssueIds ?? {}}
+                        getGroupIssueCount={issues.getGroupIssueCount}
+                        displayProperties={displayProperties}
+                        sub_group_by={sub_group_by}
+                        group_by={group_by}
+                        orderBy={orderBy}
+                        updateIssue={updateIssue}
+                        quickActions={renderQuickActions}
+                        handleCollapsedGroups={handleCollapsedGroups}
+                        collapsedGroups={collapsedGroups}
+                        enableQuickIssueCreate={enableQuickAdd}
+                        showEmptyGroup={userDisplayFilters?.show_empty_groups ?? true}
+                        quickAddCallback={quickAddIssue}
+                        disableIssueCreation={!enableIssueCreation || !isEditingAllowed || isCompletedCycle}
+                        canEditProperties={canEditProperties}
+                        addIssuesToView={addIssuesToView}
+                        scrollableContainerRef={scrollableContainerRef}
+                        handleOnDrop={handleOnDrop}
+                        loadMoreIssues={fetchMoreIssues}
+                        isEpic={isEpic}
+                        selectionHelpers={helpers}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </SelectionClearOnOutsideClick>
+          )}
+        </MultipleSelectGroup>
       </IssueLayoutHOC>
     </>
   );

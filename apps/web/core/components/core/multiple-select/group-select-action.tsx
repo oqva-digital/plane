@@ -19,11 +19,14 @@ export function MultipleSelectGroupAction(props: Props) {
 
   if (selectionHelpers.isSelectionDisabled) return null;
 
+  const handleChange = () => selectionHelpers.handleGroupClick(groupID);
+
   return (
     <Checkbox
       className={cn("size-3.5 !outline-none", className)}
       iconClassName="size-3"
-      onClick={() => selectionHelpers.handleGroupClick(groupID)}
+      onClick={handleChange}
+      onChange={handleChange}
       checked={groupSelectionStatus === "complete"}
       indeterminate={groupSelectionStatus === "partial"}
       disabled={disabled}

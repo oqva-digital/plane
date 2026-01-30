@@ -36,6 +36,7 @@ type TWorkItemDetailQuickActionProps = IQuickActionProps & {
 export const WorkItemDetailQuickActions = observer(function WorkItemDetailQuickActions(
   props: TWorkItemDetailQuickActionProps
 ) {
+  /* eslint-disable @typescript-eslint/no-unsafe-assignment -- props from parent */
   const {
     issue,
     handleDelete,
@@ -51,10 +52,13 @@ export const WorkItemDetailQuickActions = observer(function WorkItemDetailQuickA
     toggleDuplicateIssueModal,
     toggleArchiveIssueModal,
     isPeekMode = false,
+    selectionHelpers,
+    groupId,
   } = props;
+  /* eslint-enable @typescript-eslint/no-unsafe-assignment */
   // router
   const { workspaceSlug } = useParams();
-  const pathname = usePathname();
+  const _pathname = usePathname();
   // states
   const [createUpdateIssueModal, setCreateUpdateIssueModal] = useState(false);
   const [issueToEdit, setIssueToEdit] = useState<TIssue | undefined>(undefined);
@@ -99,19 +103,19 @@ export const WorkItemDetailQuickActions = observer(function WorkItemDetailQuickA
     if (toggleEditIssueModal) toggleEditIssueModal(true);
   };
 
-  const customDeleteAction = async () => {
+  const customDeleteAction = () => {
     setDeleteIssueModal(true);
     if (toggleDeleteIssueModal) toggleDeleteIssueModal(true);
   };
 
-  const customDuplicateAction = async () => {
+  const customDuplicateAction = () => {
     setDuplicateWorkItemModal(true);
     if (toggleDuplicateIssueModal) {
       toggleDuplicateIssueModal(true);
     }
   };
 
-  const customArchiveAction = async () => {
+  const customArchiveAction = () => {
     setArchiveIssueModal(true);
     if (toggleArchiveIssueModal) toggleArchiveIssueModal(true);
   };
@@ -141,6 +145,8 @@ export const WorkItemDetailQuickActions = observer(function WorkItemDetailQuickA
     handleArchive: customArchiveAction,
     handleRestore: customRestoreAction,
     storeType: EIssuesStoreType.PROJECT,
+    selectionHelpers,
+    groupId,
   };
 
   //   const MENU_ITEMS = useWorkItemDetailMenuItems(menuItemProps);
@@ -235,7 +241,7 @@ export const WorkItemDetailQuickActions = observer(function WorkItemDetailQuickA
       <ContextMenu parentRef={parentRef} items={CONTEXT_MENU_ITEMS} />
       <CustomMenu
         ellipsis
-        placement={placements}
+        placement={placements} // eslint-disable-line @typescript-eslint/no-unsafe-assignment -- placements from props
         customButton={<IconButton size="lg" variant="secondary" icon={Ellipsis} />}
         portalElement={portalElement}
         menuItemsClassName="z-[14]"

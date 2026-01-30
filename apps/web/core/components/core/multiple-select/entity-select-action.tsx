@@ -26,6 +26,7 @@ export const MultipleSelectEntityAction = observer(function MultipleSelectEntity
       className={cn("!outline-none size-3.5", className)}
       iconClassName="size-3"
       onClick={(e) => {
+        e.preventDefault();
         e.stopPropagation();
         selectionHelpers.handleEntityClick(e, id, groupId);
       }}

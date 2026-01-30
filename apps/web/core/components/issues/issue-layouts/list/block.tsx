@@ -22,6 +22,7 @@ import { useAppTheme } from "@/hooks/store/use-app-theme";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useProject } from "@/hooks/store/use-project";
 import type { TSelectionHelper } from "@/hooks/use-multiple-select";
+import { useLongPress } from "@/hooks/use-long-press";
 import { usePlatformOS } from "@/hooks/use-platform-os";
 // plane web components
 import { IssueIdentifier } from "@/plane-web/components/issues/issue-details/issue-identifier";
@@ -99,8 +100,26 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
       isArchived: !!issue.archived_at,
     });
 
-  // derived values
+  // derived values (needed early for long-press callback)
   const issue = issuesMap[issueId];
+
+  const handleLongPressSelect = () => {
+    const currentIssue = issuesMap[issueId];
+    if (!currentIssue) return;
+    const canEdit = canEditProperties(currentIssue?.project_id ?? undefined);
+    if (!canEdit || !projectId || currentIssue.project_id !== projectId) return;
+    selectionHelpers.enterSelectionMode();
+    selectionHelpers.handleEntitySelection({ entityID: currentIssue.id, groupID: groupId }, false, "force-add");
+  };
+
+  const {
+    longPressHandledRef,
+    onPointerDown: onLongPressPointerDown,
+    onPointerUp: onLongPressPointerUp,
+    onPointerCancel: onLongPressPointerCancel,
+    onPointerLeave: onLongPressPointerLeave,
+  } = useLongPress(handleLongPressSelect, { delayMs: 1000 });
+
   const subIssuesCount = issue?.sub_issues_count ?? 0;
   const canEditIssueProperties = canEditProperties(issue?.project_id ?? undefined);
   const isDraggingAllowed = canDrag && canEditIssueProperties;
@@ -145,7 +164,7 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
     } else {
       setExpanded((prevState) => {
         if (!prevState && workspaceSlug && issue && issue.project_id)
-          subIssuesStore.fetchSubIssues(workspaceSlug.toString(), issue.project_id, issue.id);
+          void subIssuesStore.fetchSubIssues(workspaceSlug.toString(), issue.project_id, issue.id);
         return !prevState;
       });
     }
@@ -167,23 +186,39 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
     isEpic,
     isArchived: !!issue?.archived_at,
   });
+  const handleRowClick = (e: React.MouseEvent) => {
+    if (longPressHandledRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      longPressHandledRef.current = false;
+      return;
+    }
+    if ((e.target as Element).closest?.("[data-issue-select-checkbox-area]")) return;
+    handleIssuePeekOverview(issue);
+  };
+
   return (
     <ControlLink
       id={`issue-${issue.id}`}
       href={workItemLink}
-      onClick={() => handleIssuePeekOverview(issue)}
-      className="w-full cursor-pointer"
+      onClick={handleRowClick}
+      onPointerDown={onLongPressPointerDown}
+      onPointerUp={onLongPressPointerUp}
+      onPointerCancel={onLongPressPointerCancel}
+      onPointerLeave={onLongPressPointerLeave}
+      style={{ touchAction: "manipulation" }}
+      className="w-full cursor-pointer block"
       disabled={!!issue?.tempId || issue?.is_draft}
     >
       <Row
         ref={issueRef}
         className={cn(
-          "group/list-block min-h-11 relative flex flex-col gap-3 bg-layer-transparent hover:bg-layer-transparent-hover py-3 text-13 transition-colors",
+          "group/list-block min-h-11 relative flex flex-col gap-3 bg-layer-transparent hover:bg-layer-transparent-hover py-3 text-13 transition-colors border border-transparent",
           {
             "border-accent-strong": getIsIssuePeeked(issue.id) && peekIssue?.nestingLevel === nestingLevel,
             "border-strong-1": isIssueActive,
             "last:border-b-transparent": !getIsIssuePeeked(issue.id) && !isIssueActive,
-            "bg-accent-primary/5 hover:bg-accent-primary/10": isIssueSelected,
+            "bg-accent-primary/5 hover:bg-accent-primary/10 border-2 border-accent-primary": isIssueSelected,
             "bg-layer-1": isCurrentBlockDragging,
             "md:flex-row md:items-center": isSidebarCollapsed,
             "lg:flex-row lg:items-center": !isSidebarCollapsed,
@@ -201,9 +236,9 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
           }
         }}
       >
-        <div className="flex gap-2 w-full truncate">
+        <div className="flex gap-2 w-full truncate" style={{ touchAction: "manipulation" }}>
           <div className="flex flex-grow items-center gap-0.5 truncate">
-            <div className="flex items-center gap-1" style={isSubIssue ? { marginLeft } : {}}>
+            <div className="flex items-center gap-2" style={isSubIssue ? { marginLeft } : {}}>
               {/* select checkbox */}
               {projectId && canSelectIssues && !isEpic && (
                 <Tooltip
@@ -216,14 +251,27 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
                   }
                   disabled={issue.project_id === projectId}
                 >
-                  <div className="flex-shrink-0 grid place-items-center w-3.5 absolute left-1">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    data-issue-select-checkbox-area
+                    className={cn(
+                      "flex-shrink-0 grid place-items-center w-5",
+                      "opacity-0 pointer-events-none group-hover/list-block:opacity-100 group-hover/list-block:pointer-events-auto transition-opacity",
+                      { "opacity-100 pointer-events-auto": isIssueSelected }
+                    )}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }
+                    }}
+                  >
                     <MultipleSelectEntityAction
-                      className={cn(
-                        "opacity-0 pointer-events-none group-hover/list-block:opacity-100 group-hover/list-block:pointer-events-auto transition-opacity",
-                        {
-                          "opacity-100 pointer-events-auto": isIssueSelected,
-                        }
-                      )}
                       groupId={groupId}
                       id={issue.id}
                       selectionHelpers={selectionHelpers}
@@ -298,6 +346,8 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
               {quickActions({
                 issue,
                 parentRef: issueRef,
+                selectionHelpers,
+                groupId,
               })}
             </div>
           )}
@@ -315,6 +365,8 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
                 isEpic={isEpic}
               />
               <div
+                role="button"
+                tabIndex={0}
                 className={cn("hidden", {
                   "md:flex": isSidebarCollapsed,
                   "lg:flex": !isSidebarCollapsed,
@@ -323,10 +375,18 @@ export const IssueBlock = observer(function IssueBlock(props: IssueBlockProps) {
                   e.preventDefault();
                   e.stopPropagation();
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                }}
               >
                 {quickActions({
                   issue,
                   parentRef: issueRef,
+                  selectionHelpers,
+                  groupId,
                 })}
               </div>
             </>

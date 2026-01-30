@@ -32,6 +32,7 @@ export const IssuesSidebarBlock = observer(function IssuesSidebarBlock(props: Pr
 
   if (!block?.data) return null;
 
+  const blockData = block.data as { id: string; project_id?: string };
   const isIssueSelected = selectionHelpers?.getIsEntitySelected(block.id);
   const isIssueFocused = selectionHelpers?.getIsEntityActive(block.id);
   const isBlockHoveredOn = isBlockActive(block.id);
@@ -40,7 +41,7 @@ export const IssuesSidebarBlock = observer(function IssuesSidebarBlock(props: Pr
     <div
       className={cn("group/list-block", {
         "rounded-sm bg-layer-1": isDragging,
-        "rounded-l-sm border border-r-0 border-accent-strong": getIsIssuePeeked(block.data.id),
+        "rounded-l-sm border border-r-0 border-accent-strong": getIsIssuePeeked(blockData.id),
         "border border-r-0 border-strong-1": isIssueFocused,
       })}
       onMouseEnter={() => updateActiveBlockId(block.id)}
@@ -76,7 +77,13 @@ export const IssuesSidebarBlock = observer(function IssuesSidebarBlock(props: Pr
         )}
         <div className="flex h-full flex-grow items-center justify-between gap-2 truncate">
           <div className="flex-grow truncate">
-            <IssueGanttSidebarBlock issueId={block.data.id} isEpic={isEpic} />
+            <IssueGanttSidebarBlock
+              issueId={blockData.id}
+              isEpic={isEpic}
+              selectionHelpers={selectionHelpers}
+              groupId={GANTT_SELECT_GROUP}
+              projectId={blockData.project_id ?? undefined}
+            />
           </div>
           {duration && (
             <div className="flex-shrink-0 text-13 text-secondary">

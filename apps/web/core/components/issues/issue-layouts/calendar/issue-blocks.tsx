@@ -4,6 +4,7 @@ import type { TIssue, TPaginationData } from "@plane/types";
 // components
 import { renderFormattedPayloadDate } from "@plane/utils";
 // helpers
+import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 import { useIssuesStore } from "@/hooks/use-issue-layout-store";
 import type { TRenderQuickActions } from "../list/list-view-types";
 import { CalendarIssueBlockRoot } from "./issue-block-root";
@@ -21,11 +22,13 @@ type Props = {
   enableQuickIssueCreate?: boolean;
   disableIssueCreation?: boolean;
   quickAddCallback?: (projectId: string | null | undefined, data: TIssue) => Promise<TIssue | undefined>;
-  addIssuesToView?: (issueIds: string[]) => Promise<any>;
+  addIssuesToView?: (issueIds: string[]) => Promise<void>;
   readOnly?: boolean;
   isMobileView?: boolean;
   canEditProperties: (projectId: string | undefined) => boolean;
   isEpic?: boolean;
+  selectionHelpers?: TSelectionHelper;
+  groupId?: string;
 };
 
 export const CalendarIssueBlocks = observer(function CalendarIssueBlocks(props: Props) {
@@ -43,19 +46,19 @@ export const CalendarIssueBlocks = observer(function CalendarIssueBlocks(props: 
     isMobileView = false,
     canEditProperties,
     isEpic = false,
+    selectionHelpers,
+    groupId,
   } = props;
   const formattedDatePayload = renderFormattedPayloadDate(date);
   const { t } = useTranslation();
 
-  const {
-    issues: { getGroupIssueCount, getPaginationData, getIssueLoader },
-  } = useIssuesStore();
+  const issuesStore = useIssuesStore();
 
   if (!formattedDatePayload) return null;
 
-  const dayIssueCount = getGroupIssueCount(formattedDatePayload, undefined, false);
-  const nextPageResults = getPaginationData(formattedDatePayload, undefined)?.nextPageResults;
-  const isPaginating = !!getIssueLoader(formattedDatePayload);
+  const dayIssueCount = issuesStore.issues.getGroupIssueCount(formattedDatePayload, undefined, false);
+  const nextPageResults = issuesStore.issues.getPaginationData(formattedDatePayload, undefined)?.nextPageResults;
+  const isPaginating = !!issuesStore.issues.getIssueLoader(formattedDatePayload);
 
   const shouldLoadMore =
     nextPageResults === undefined && dayIssueCount !== undefined
@@ -72,6 +75,8 @@ export const CalendarIssueBlocks = observer(function CalendarIssueBlocks(props: 
             isDragDisabled={isDragDisabled || isMobileView}
             canEditProperties={canEditProperties}
             isEpic={isEpic}
+            selectionHelpers={selectionHelpers}
+            groupId={groupId}
           />
         </div>
       ))}

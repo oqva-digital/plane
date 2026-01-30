@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 // plane imports
@@ -7,12 +7,17 @@ import { EIssueGroupByToServerOptions, EUserPermissions, EUserPermissionsLevel }
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TGroupedIssues } from "@plane/types";
 import { EIssuesStoreType } from "@plane/types";
+// components
+import { MultipleSelectGroup, SelectionClearOnOutsideClick } from "@/components/core/multiple-select";
 // hooks
 import { useCalendarView } from "@/hooks/store/use-calendar-view";
 import { useIssues } from "@/hooks/store/use-issues";
+import { useMultipleSelectStore } from "@/hooks/store/use-multiple-select-store";
 import { useUserPermissions } from "@/hooks/store/user";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { useIssuesActions } from "@/hooks/use-issues-actions";
+// plane web components
+import { IssueBulkOperationsRoot } from "@/plane-web/components/issues/bulk-operations";
 // types
 import type { IQuickActionProps } from "../list/list-view-types";
 import { CalendarChart } from "./calendar";
@@ -29,7 +34,7 @@ export type CalendarStoreType =
 
 interface IBaseCalendarRoot {
   QuickActions: FC<IQuickActionProps>;
-  addIssuesToView?: (issueIds: string[]) => Promise<any>;
+  addIssuesToView?: (issueIds: string[]) => Promise<void>;
   isCompletedCycle?: boolean;
   viewId?: string | undefined;
   isEpic?: boolean;
@@ -67,6 +72,9 @@ export const BaseCalendarRoot = observer(function BaseCalendarRoot(props: IBaseC
   } = useIssuesActions(storeType);
 
   const issueCalendarView = useCalendarView();
+  const { selectionModeEnabled } = useMultipleSelectStore();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const selectionAreaRef = useRef<HTMLDivElement | null>(null);
 
   const isEditingAllowed = allowPermissions(
     [EUserPermissions.ADMIN, EUserPermissions.MEMBER],
@@ -84,7 +92,7 @@ export const BaseCalendarRoot = observer(function BaseCalendarRoot(props: IBaseC
 
   useEffect(() => {
     if (startDate && endDate && layout) {
-      fetchIssues(
+      void fetchIssues(
         "init-loader",
         {
           canGroup: true,
@@ -113,7 +121,7 @@ export const BaseCalendarRoot = observer(function BaseCalendarRoot(props: IBaseC
       workspaceSlug?.toString(),
       issueProjectId,
       updateIssue
-    ).catch((err) => {
+    ).catch((err: { detail?: string }) => {
       setToast({
         title: "Error!",
         type: TOAST_TYPE.ERROR,
@@ -124,19 +132,19 @@ export const BaseCalendarRoot = observer(function BaseCalendarRoot(props: IBaseC
 
   const loadMoreIssues = useCallback(
     (dateString: string) => {
-      fetchNextIssues(dateString);
+      void fetchNextIssues(dateString);
     },
     [fetchNextIssues]
   );
 
   const getPaginationData = useCallback(
     (groupId: string | undefined) => issues?.getPaginationData(groupId, undefined),
-    [issues?.getPaginationData]
+    [issues]
   );
 
   const getGroupIssueCount = useCallback(
     (groupId: string | undefined) => issues?.getGroupIssueCount(groupId, undefined, false),
-    [issues?.getGroupIssueCount]
+    [issues]
   );
 
   const canEditProperties = useCallback(
@@ -152,38 +160,69 @@ export const BaseCalendarRoot = observer(function BaseCalendarRoot(props: IBaseC
   return (
     <>
       <div className="h-full w-full overflow-hidden bg-surface-1 pt-4">
-        <CalendarChart
-          issuesFilterStore={issuesFilter}
-          issues={issueMap}
-          groupedIssueIds={groupedIssueIds}
-          layout={displayFilters?.calendar?.layout}
-          showWeekends={displayFilters?.calendar?.show_weekends ?? false}
-          issueCalendarView={issueCalendarView}
-          quickActions={({ issue, parentRef, customActionButton, placement }) => (
-            <QuickActions
-              parentRef={parentRef}
-              customActionButton={customActionButton}
-              issue={issue}
-              handleDelete={async () => removeIssue(issue.project_id, issue.id)}
-              handleUpdate={async (data) => updateIssue && updateIssue(issue.project_id, issue.id, data)}
-              handleRemoveFromView={async () => removeIssueFromView && removeIssueFromView(issue.project_id, issue.id)}
-              handleArchive={async () => archiveIssue && archiveIssue(issue.project_id, issue.id)}
-              handleRestore={async () => restoreIssue && restoreIssue(issue.project_id, issue.id)}
-              readOnly={!canEditProperties(issue.project_id ?? undefined) || isCompletedCycle}
-              placements={placement}
-            />
+        <MultipleSelectGroup
+          containerRef={containerRef}
+          entities={groupedIssueIds}
+          disabled={!selectionModeEnabled || isEpic}
+        >
+          {(helpers) => (
+            <SelectionClearOnOutsideClick
+              containerRef={selectionAreaRef}
+              onClearSelection={helpers.handleClearSelection}
+            >
+              <div ref={selectionAreaRef} className="flex h-full w-full flex-col overflow-hidden">
+                <IssueBulkOperationsRoot selectionHelpers={helpers} />
+                <div className="min-h-0 flex-1">
+                  <CalendarChart
+                    issuesFilterStore={issuesFilter}
+                    issues={issueMap}
+                    groupedIssueIds={groupedIssueIds}
+                    layout={displayFilters?.calendar?.layout}
+                    showWeekends={displayFilters?.calendar?.show_weekends ?? false}
+                    issueCalendarView={issueCalendarView}
+                    containerRef={containerRef}
+                    selectionHelpers={helpers}
+                    quickActions={({
+                      issue,
+                      parentRef,
+                      customActionButton,
+                      placement,
+                      selectionHelpers: sa,
+                      groupId,
+                    }) => (
+                      <QuickActions
+                        parentRef={parentRef}
+                        customActionButton={customActionButton}
+                        issue={issue}
+                        handleDelete={async () => removeIssue(issue.project_id, issue.id)}
+                        handleUpdate={async (data) => updateIssue && updateIssue(issue.project_id, issue.id, data)}
+                        handleRemoveFromView={async () =>
+                          removeIssueFromView && removeIssueFromView(issue.project_id, issue.id)
+                        }
+                        handleArchive={async () => archiveIssue && archiveIssue(issue.project_id, issue.id)}
+                        handleRestore={async () => restoreIssue && restoreIssue(issue.project_id, issue.id)}
+                        readOnly={!canEditProperties(issue.project_id ?? undefined) || isCompletedCycle}
+                        placements={placement} // eslint-disable-line @typescript-eslint/no-unsafe-assignment -- placement from callback
+                        selectionHelpers={sa ?? helpers}
+                        groupId={groupId}
+                      />
+                    )}
+                    loadMoreIssues={loadMoreIssues}
+                    getPaginationData={getPaginationData}
+                    getGroupIssueCount={getGroupIssueCount}
+                    addIssuesToView={addIssuesToView}
+                    quickAddCallback={quickAddIssue}
+                    readOnly={isCompletedCycle}
+                    updateFilters={updateFilters}
+                    handleDragAndDrop={handleDragAndDrop}
+                    canEditProperties={canEditProperties}
+                    isEpic={isEpic}
+                  />
+                </div>
+              </div>
+            </SelectionClearOnOutsideClick>
           )}
-          loadMoreIssues={loadMoreIssues}
-          getPaginationData={getPaginationData}
-          getGroupIssueCount={getGroupIssueCount}
-          addIssuesToView={addIssuesToView}
-          quickAddCallback={quickAddIssue}
-          readOnly={isCompletedCycle}
-          updateFilters={updateFilters}
-          handleDragAndDrop={handleDragAndDrop}
-          canEditProperties={canEditProperties}
-          isEpic={isEpic}
-        />
+        </MultipleSelectGroup>
       </div>
     </>
   );

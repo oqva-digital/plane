@@ -10,6 +10,7 @@ export type IMultipleSelectStore = {
   // computed functions
   isSelectionActive: boolean;
   selectedEntityIds: string[];
+  selectionModeEnabled: boolean;
   // helper actions
   getIsEntitySelected: (entityID: string) => boolean;
   getIsEntityActive: (entityID: string) => boolean;
@@ -18,6 +19,7 @@ export type IMultipleSelectStore = {
   getNextActiveEntity: () => TEntityDetails | null;
   getActiveEntityDetails: () => TEntityDetails | null;
   getEntityDetailsFromEntityID: (entityID: string) => TEntityDetails | null;
+  setSelectionModeEnabled: (value: boolean) => void;
   // entity actions
   updateSelectedEntityDetails: (entityDetails: TEntityDetails, action: "add" | "remove") => void;
   bulkUpdateSelectedEntityDetails: (entitiesList: TEntityDetails[], action: "add" | "remove") => void;
@@ -42,6 +44,7 @@ export class MultipleSelectStore implements IMultipleSelectStore {
   previousActiveEntity: TEntityDetails | null = null;
   nextActiveEntity: TEntityDetails | null = null;
   activeEntityDetails: TEntityDetails | null = null;
+  selectionModeEnabled = false;
   // service
   issueService;
 
@@ -53,6 +56,7 @@ export class MultipleSelectStore implements IMultipleSelectStore {
       previousActiveEntity: observable,
       nextActiveEntity: observable,
       activeEntityDetails: observable,
+      selectionModeEnabled: observable,
       // computed functions
       isSelectionActive: computed,
       selectedEntityIds: computed,
@@ -63,11 +67,18 @@ export class MultipleSelectStore implements IMultipleSelectStore {
       updatePreviousActiveEntity: action,
       updateNextActiveEntity: action,
       updateActiveEntityDetails: action,
+      setSelectionModeEnabled: action,
       clearSelection: action,
     });
 
     this.issueService = new IssueService();
   }
+
+  setSelectionModeEnabled = (value: boolean) => {
+    runInAction(() => {
+      this.selectionModeEnabled = value;
+    });
+  };
 
   get isSelectionActive() {
     return this.selectedEntityDetails.length > 0;
@@ -227,6 +238,7 @@ export class MultipleSelectStore implements IMultipleSelectStore {
       this.previousActiveEntity = null;
       this.nextActiveEntity = null;
       this.activeEntityDetails = null;
+      this.selectionModeEnabled = false;
     });
   };
 }

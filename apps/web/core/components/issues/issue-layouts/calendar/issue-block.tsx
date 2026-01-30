@@ -1,4 +1,4 @@
-import { useState, useRef, forwardRef } from "react";
+import { useState, useRef, forwardRef, useEffect } from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 import { MoreHorizontal } from "lucide-react";
@@ -8,11 +8,15 @@ import { Popover } from "@plane/propel/popover";
 import type { TIssue } from "@plane/types";
 import { ControlLink } from "@plane/ui";
 import { cn, generateWorkItemLink } from "@plane/utils";
+// components
+import { MultipleSelectEntityAction } from "@/components/core/multiple-select";
 // hooks
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useIssues } from "@/hooks/store/use-issues";
 import { useProject } from "@/hooks/store/use-project";
 import { useProjectState } from "@/hooks/store/use-project-state";
+import type { TSelectionHelper } from "@/hooks/use-multiple-select";
+import { useLongPress } from "@/hooks/use-long-press";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import useIssuePeekOverviewRedirection from "@/hooks/use-issue-peek-overview-redirection";
 import { usePlatformOS } from "@/hooks/use-platform-os";
@@ -28,11 +32,22 @@ type Props = {
   quickActions: TRenderQuickActions;
   isDragging?: boolean;
   isEpic?: boolean;
+  selectionHelpers?: TSelectionHelper;
+  groupId?: string;
+  canEditProperties?: (projectId: string | undefined) => boolean;
 };
 
 export const CalendarIssueBlock = observer(
   forwardRef(function CalendarIssueBlock(props: Props, ref: React.ForwardedRef<HTMLAnchorElement>) {
-    const { issue, quickActions, isDragging = false, isEpic = false } = props;
+    const {
+      issue,
+      quickActions,
+      isDragging = false,
+      isEpic = false,
+      selectionHelpers,
+      groupId,
+      canEditProperties,
+    } = props;
     // states
     const [isMenuActive, setIsMenuActive] = useState(false);
     // refs
@@ -54,24 +69,52 @@ export const CalendarIssueBlock = observer(
     // handlers
     const handleIssuePeekOverview = (issue: TIssue) => handleRedirection(workspaceSlug.toString(), issue, isMobile);
 
+    const handleLongPressSelect = () => {
+      if (!selectionHelpers || !groupId || !canEditProperties?.(issue?.project_id)) return;
+      selectionHelpers.enterSelectionMode();
+      selectionHelpers.handleEntitySelection({ entityID: issue.id, groupID: groupId }, false, "force-add");
+    };
+
+    const {
+      longPressHandledRef,
+      onPointerDown: onLongPressPointerDown,
+      onPointerUp: onLongPressPointerUp,
+      onPointerCancel: onLongPressPointerCancel,
+      onPointerLeave: onLongPressPointerLeave,
+    } = useLongPress(handleLongPressSelect, { delayMs: 1000 });
+
     useOutsideClickDetector(menuActionRef, () => setIsMenuActive(false));
+
+    const [placement, setPlacement] = useState<"bottom-end" | "top-end">("bottom-end");
+    useEffect(() => {
+      if (!isMenuActive) return;
+      const el = menuActionRef.current;
+      if (!el) return;
+      const above = el.getBoundingClientRect().bottom < window.innerHeight - 220;
+      const next = above ? "bottom-end" : "top-end";
+      const id = setTimeout(() => setPlacement(next), 0);
+      return () => clearTimeout(id);
+    }, [isMenuActive]);
 
     const customActionButton = (
       <div
         ref={menuActionRef}
+        role="button"
+        tabIndex={0}
         className={`w-full cursor-pointer rounded-sm p-1 text-placeholder hover:bg-layer-1 ${
           isMenuActive ? "bg-layer-1-active text-primary" : "text-secondary"
         }`}
         onClick={() => setIsMenuActive(!isMenuActive)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setIsMenuActive((prev) => !prev);
+          }
+        }}
       >
         <MoreHorizontal className="h-3.5 w-3.5" />
       </div>
     );
-
-    const isMenuActionRefAboveScreenBottom =
-      menuActionRef?.current && menuActionRef?.current?.getBoundingClientRect().bottom < window.innerHeight - 220;
-
-    const placement = isMenuActionRefAboveScreenBottom ? "bottom-end" : "top-end";
 
     const workItemLink = generateWorkItemLink({
       workspaceSlug: workspaceSlug?.toString(),
@@ -91,7 +134,19 @@ export const CalendarIssueBlock = observer(
             <ControlLink
               id={`issue-${issue.id}`}
               href={workItemLink}
-              onClick={() => handleIssuePeekOverview(issue)}
+              onClick={(e) => {
+                if (longPressHandledRef.current) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  longPressHandledRef.current = false;
+                  return;
+                }
+                handleIssuePeekOverview(issue);
+              }}
+              onPointerDown={onLongPressPointerDown}
+              onPointerUp={onLongPressPointerUp}
+              onPointerCancel={onLongPressPointerCancel}
+              onPointerLeave={onLongPressPointerLeave}
               className="block w-full text-13 text-primary rounded-sm border-b md:border-[1px] border-subtle hover:border-subtle-1"
               disabled={!!issue?.tempId || isMobile}
               ref={ref}
@@ -104,15 +159,40 @@ export const CalendarIssueBlock = observer(
                 <div
                   ref={blockRef}
                   className={cn(
-                    "group/calendar-block flex h-10 md:h-8 w-full items-center justify-between gap-1.5 rounded-sm  md:px-1 px-4 py-1.5 ",
+                    "group/calendar-block flex h-10 md:h-8 w-full items-center justify-between gap-2 rounded-sm border border-transparent md:px-1 px-4 py-1.5 ",
                     {
                       "bg-surface-2 shadow-raised-200 border-accent-strong": isDragging,
                       "bg-surface-1 hover:bg-surface-2": !isDragging,
                       "border border-accent-strong hover:border-accent-strong": getIsIssuePeeked(issue.id),
+                      "border-2 border-accent-primary": selectionHelpers?.getIsEntitySelected(issue.id),
                     }
                   )}
                 >
-                  <div className="flex h-full items-center gap-1.5 truncate">
+                  <div className="flex h-full min-w-0 flex-1 items-center gap-2 truncate">
+                    {selectionHelpers && groupId && !selectionHelpers.isSelectionDisabled && (
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className="flex w-5 flex-shrink-0 items-center justify-center"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }
+                        }}
+                        data-issue-select-checkbox-area
+                      >
+                        <MultipleSelectEntityAction
+                          id={issue.id}
+                          groupId={groupId}
+                          selectionHelpers={selectionHelpers}
+                        />
+                      </div>
+                    )}
                     <span
                       className="h-full w-0.5 flex-shrink-0 rounded-sm"
                       style={{
@@ -131,6 +211,8 @@ export const CalendarIssueBlock = observer(
                     <div className="truncate text-13 font-medium md:font-regular md:text-11">{issue.name}</div>
                   </div>
                   <div
+                    role="button"
+                    tabIndex={0}
                     className={cn("flex-shrink-0 size-5", {
                       "hidden group-hover/calendar-block:block": !isMobile,
                       block: isMenuActive,
@@ -139,12 +221,20 @@ export const CalendarIssueBlock = observer(
                       e.preventDefault();
                       e.stopPropagation();
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }
+                    }}
                   >
                     {quickActions({
                       issue,
                       parentRef: blockRef,
                       customActionButton,
                       placement,
+                      selectionHelpers,
+                      groupId,
                     })}
                   </div>
                 </div>
