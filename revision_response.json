@@ -1,0 +1,26 @@
+{
+  "status": "COMPLETED",
+  "assessments": [
+    {
+      "issue": "Markdown sent as description_html via API (from n8n) is not properly converted to HTML for display in Plane UI",
+      "response": "WILL_DO",
+      "action": "Added markdown detection logic (is_markdown_content and _has_markdown_patterns functions) and markdown_to_html conversion function in apps/api/plane/utils/html_processor.py. Added process_description_html function that detects if content is markdown wrapped in simple HTML and converts it to proper HTML."
+    },
+    {
+      "issue": "Page model doesn't process markdown content before saving",
+      "response": "WILL_DO",
+      "action": "Updated Page.save() method in apps/api/plane/db/models/page.py to call process_description_html() on description_html before generating description_stripped and description_md. This ensures markdown sent via API is first converted to proper HTML."
+    },
+    {
+      "issue": "PageVersion model doesn't process markdown content before saving",
+      "response": "WILL_DO",
+      "action": "Updated PageVersion.save() method in apps/api/plane/db/models/page.py to call process_description_html() on description_html before generating description_stripped and description_md."
+    },
+    {
+      "issue": "Missing markdown library dependency",
+      "response": "WILL_DO",
+      "action": "Added markdown==3.6 to apps/api/requirements/base.txt for markdown-to-HTML conversion functionality."
+    }
+  ],
+  "summary": "Implemented bidirectional conversion between markdown and HTML. When content is sent via API (e.g., from n8n) as description_html but contains markdown formatting, the system now detects this and converts it to proper HTML before storing. The detection works by checking for markdown patterns (headings, bold, italic, lists, links, code blocks, etc.) within content that is wrapped in simple HTML tags like <p>. The flow is: 1) Detect if description_html contains markdown, 2) If yes, extract text and convert markdown to HTML using the markdown library, 3) Store proper HTML in description_html, 4) The existing html_to_markdown function then generates description_md from the clean HTML. This ensures the Plane UI displays content correctly regardless of whether it was created via the UI (HTML) or via API (markdown)."
+}
