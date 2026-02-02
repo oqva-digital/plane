@@ -221,8 +221,8 @@ def is_markdown_content(content):
     # First, check if it looks like HTML by parsing it
     soup = BeautifulSoup(content, "html.parser")
 
-    # Get the text content
-    text_content = soup.get_text()
+    # Get the text content, preserving line breaks between elements
+    text_content = soup.get_text(separator="\n")
 
     # If there's no text content, it's not markdown
     if not text_content.strip():
@@ -252,6 +252,10 @@ def _has_markdown_patterns(text):
     """
     Check if text contains markdown formatting patterns.
 
+    Requires at least 2 different markdown pattern types to be detected
+    to avoid false positives from plain text that happens to contain
+    characters like dashes or asterisks.
+
     Args:
         text: Plain text to check for markdown patterns
 
@@ -260,6 +264,9 @@ def _has_markdown_patterns(text):
     """
     if not text:
         return False
+
+    # Track which pattern types are found
+    found_patterns = set()
 
     # Markdown heading patterns (# Heading)
     heading_pattern = r"^#{1,6}\s+.+"
@@ -270,8 +277,10 @@ def _has_markdown_patterns(text):
     # Italic pattern (*text* or _text_) - be careful not to match underscores in words
     italic_pattern = r"(?<!\w)\*[^*]+\*(?!\w)|(?<!\w)_[^_]+_(?!\w)"
 
-    # List patterns (- item or * item or 1. item)
-    list_pattern = r"^[\s]*[-*+]\s+.+|^[\s]*\d+\.\s+.+"
+    # List patterns - require at least 2 consecutive list items to avoid false positives
+    # Matches lines starting with - or * or + followed by space, or numbered lists
+    unordered_list_pattern = r"^[\s]*[-*+]\s+.+"
+    ordered_list_pattern = r"^[\s]*\d+\.\s+.+"
 
     # Link pattern [text](url)
     link_pattern = r"\[[^\]]+\]\([^)]+\)"
@@ -285,37 +294,40 @@ def _has_markdown_patterns(text):
     # Blockquote pattern (> text)
     blockquote_pattern = r"^>\s+.+"
 
-    patterns = [
-        heading_pattern,
-        bold_pattern,
-        italic_pattern,
-        list_pattern,
-        link_pattern,
-        code_block_pattern,
-        inline_code_pattern,
-        blockquote_pattern,
-    ]
-
     # Check each line for multiline patterns
+    list_item_count = 0
     for line in text.split("\n"):
         line = line.strip()
         if re.search(heading_pattern, line, re.MULTILINE):
-            return True
-        if re.search(list_pattern, line, re.MULTILINE):
-            return True
+            found_patterns.add("heading")
+        if re.search(unordered_list_pattern, line, re.MULTILINE) or re.search(
+            ordered_list_pattern, line, re.MULTILINE
+        ):
+            list_item_count += 1
         if re.search(blockquote_pattern, line, re.MULTILINE):
-            return True
+            found_patterns.add("blockquote")
+
+    # Only count lists if there are at least 2 items (avoid single dash false positives)
+    if list_item_count >= 2:
+        found_patterns.add("list")
 
     # Check entire text for inline patterns
-    for pattern in [bold_pattern, italic_pattern, link_pattern, inline_code_pattern]:
-        if re.search(pattern, text):
-            return True
+    if re.search(bold_pattern, text):
+        found_patterns.add("bold")
+    if re.search(italic_pattern, text):
+        found_patterns.add("italic")
+    if re.search(link_pattern, text):
+        found_patterns.add("link")
+    if re.search(inline_code_pattern, text):
+        found_patterns.add("inline_code")
 
     # Check for code blocks
     if re.search(code_block_pattern, text, re.MULTILINE):
-        return True
+        found_patterns.add("code_block")
 
-    return False
+    # Require at least 2 different pattern types to be confident it's markdown
+    # This avoids false positives from plain text with occasional dashes or asterisks
+    return len(found_patterns) >= 2
 
 
 def markdown_to_html(md_content):
@@ -369,8 +381,9 @@ def process_description_html(content):
     # Check if the content is markdown wrapped in simple HTML
     if is_markdown_content(content):
         # Extract the text content (strip HTML wrappers)
+        # Use separator='\n' to preserve line breaks between elements
         soup = BeautifulSoup(content, "html.parser")
-        text_content = soup.get_text()
+        text_content = soup.get_text(separator="\n")
 
         # Convert markdown to HTML
         return markdown_to_html(text_content)
