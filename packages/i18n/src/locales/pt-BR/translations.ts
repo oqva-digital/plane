@@ -448,6 +448,8 @@ export default {
   editor_is_not_ready_to_discard_changes: "O editor não está pronto para descartar as alterações",
   failed_to_move_issue_to_project: "Falha ao mover o item de trabalho para o projeto",
   create_more: "Criar mais",
+  copy_descendants: "Copiar descendentes",
+  copying: "Copiando",
   add_to_project: "Adicionar ao projeto",
   discard: "Descartar",
   duplicate_issue_found: "Item de trabalho duplicado encontrado",
