@@ -72,4 +72,4 @@ drf-spectacular==0.28.0
 # html sanitizer
 nh3==0.2.18
 # markdown to html
-markdown==3.7
+markdown==3.10.1

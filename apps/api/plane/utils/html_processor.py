@@ -258,10 +258,6 @@ def _has_markdown_patterns(text):
     """
     Check if text contains markdown formatting patterns.
 
-    Requires at least 2 different markdown pattern types to be detected
-    to avoid false positives from plain text that happens to contain
-    characters like dashes or asterisks.
-
     Args:
         text: Plain text to check for markdown patterns
 
@@ -274,8 +270,9 @@ def _has_markdown_patterns(text):
     # Track which pattern types are found
     found_patterns = set()
 
-    # Markdown heading patterns (# Heading)
-    heading_pattern = r"^#{1,6}\s+.+"
+    # Markdown heading patterns (# Heading) - match at start of line or after whitespace
+    # This handles headings that may appear in the middle of content
+    heading_pattern = r"(?:^|\s)#{1,6}\s+\S+"
 
     # Bold pattern (**text** or __text__)
     bold_pattern = r"\*\*[^*]+\*\*|__[^_]+__"
@@ -283,8 +280,7 @@ def _has_markdown_patterns(text):
     # Italic pattern (*text* or _text_) - be careful not to match underscores in words
     italic_pattern = r"(?<!\w)\*[^*]+\*(?!\w)|(?<!\w)_[^_]+_(?!\w)"
 
-    # List patterns - require at least 2 consecutive list items to avoid false positives
-    # Matches lines starting with - or * or + followed by space, or numbered lists
+    # List patterns - matches lines starting with - or * or + followed by space, or numbered lists
     unordered_list_pattern = r"^[\s]*[-*+]\s+.+"
     ordered_list_pattern = r"^[\s]*\d+\.\s+.+"
 
@@ -304,12 +300,17 @@ def _has_markdown_patterns(text):
     list_item_count = 0
     for line in text.split("\n"):
         line = line.strip()
-        if re.search(heading_pattern, line):
+        if re.search(r"^#{1,6}\s+.+", line):
             found_patterns.add("heading")
         if re.search(unordered_list_pattern, line) or re.search(ordered_list_pattern, line):
             list_item_count += 1
         if re.search(blockquote_pattern, line):
             found_patterns.add("blockquote")
+
+    # Also check for headings anywhere in the text (not just at line start)
+    # This handles content where line breaks were lost
+    if re.search(heading_pattern, text, re.MULTILINE):
+        found_patterns.add("heading")
 
     # Only count lists if there are at least 2 items (avoid single dash false positives)
     if list_item_count >= 2:
@@ -329,6 +330,11 @@ def _has_markdown_patterns(text):
     if re.search(code_block_pattern, text, re.MULTILINE):
         found_patterns.add("code_block")
 
+    # If we found a heading pattern (strong indicator of markdown), that's enough
+    # For other patterns, require at least 2 different types
+    if "heading" in found_patterns:
+        return True
+
     # Require at least 2 different pattern types to be confident it's markdown
     # This avoids false positives from plain text with occasional dashes or asterisks
     return len(found_patterns) >= 2
@@ -347,10 +353,15 @@ def markdown_to_html(md_content):
     if not md_content:
         return "<p></p>"
 
+    # Preprocess: Add line breaks before markdown heading patterns that appear inline
+    # This handles cases where headings appear without proper line breaks
+    # Match heading patterns (# to ######) that aren't at the start of a line
+    preprocessed = re.sub(r"(?<!^)(?<!\n)(#{1,6}\s+)", r"\n\1", md_content)
+
     # Use the markdown library to convert to HTML
     # Enable common extensions for better compatibility
     html_content = markdown.markdown(
-        md_content,
+        preprocessed,
         extensions=[
             "tables",
             "fenced_code",
