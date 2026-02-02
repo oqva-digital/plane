@@ -26,6 +26,20 @@
 **GET /api/v1/workspaces/{slug}/projects/{project_id}/pages/{pk}/**
 - Retrieves details of a specific page
 
+**PATCH /api/v1/workspaces/{slug}/projects/{project_id}/pages/{pk}/**
+- Partially updates an existing page
+- Request body: `{ "name": "New Title", "description_html": "<p>New content</p>" }`
+- Returns 200 OK with updated page data
+- Additional updatable fields: `access`, `color`, `parent`, `view_props`, `logo_props`
+- Cannot update locked pages
+- Only the owner can change page access level
+
+**DELETE /api/v1/workspaces/{slug}/projects/{project_id}/pages/{pk}/**
+- Permanently deletes a page
+- Returns 204 No Content on success
+- Page must be archived before deletion
+- Only page owner or project admin can delete
+
 ### Authentication & Permissions
 - Uses `APIKeyAuthentication` for API key-based access
 - Uses `ProjectEntityPermission` for authorization
