@@ -1,6 +1,5 @@
 # Django imports
-from django.db.models import Exists, OuterRef, Q, Value
-from django.db.models.functions import Coalesce
+from django.db.models import Exists, OuterRef
 
 # Third party imports
 from rest_framework import status
