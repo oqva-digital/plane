@@ -140,3 +140,100 @@ class PageDetailAPIEndpoint(BaseAPIView):
         page = self.get_queryset().get(pk=pk)
         serializer = PageSerializer(page, fields=self.fields, expand=self.expand)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request, slug, project_id, pk):
+        """Update page
+
+        Partially update an existing page's properties like name or description_html.
+        """
+        page = Page.objects.get(
+            pk=pk,
+            workspace__slug=slug,
+            project_pages__project_id=project_id,
+            project_pages__deleted_at__isnull=True,
+        )
+
+        if page.is_locked:
+            return Response(
+                {"error": "Page is locked"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Only update access if the page owner is the requesting user
+        if (
+            page.access != request.data.get("access", page.access)
+            and page.owned_by_id != request.user.id
+        ):
+            return Response(
+                {"error": "Access cannot be updated since this page is owned by someone else"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = PageSerializer(page, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            # Send the model activity webhook
+            model_activity.delay(
+                model_name="page",
+                model_id=str(pk),
+                requested_data=request.data,
+                current_instance=None,
+                actor_id=request.user.id,
+                slug=slug,
+                origin=base_host(request=request, is_app=True),
+            )
+            page = self.get_queryset().get(pk=pk)
+            response_serializer = PageSerializer(page)
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, slug, project_id, pk):
+        """Delete page
+
+        Permanently remove a page from a project.
+        The page must be archived before it can be deleted.
+        Only the owner or admin can delete the page.
+        """
+        page = Page.objects.get(
+            pk=pk,
+            workspace__slug=slug,
+            project_pages__project_id=project_id,
+            project_pages__deleted_at__isnull=True,
+        )
+
+        if page.archived_at is None:
+            return Response(
+                {"error": "The page should be archived before deleting"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Send the model activity webhook before deletion
+        model_activity.delay(
+            model_name="page",
+            model_id=str(pk),
+            requested_data=None,
+            current_instance=None,
+            actor_id=request.user.id,
+            slug=slug,
+            origin=base_host(request=request, is_app=True),
+        )
+
+        # Remove parent from all children
+        Page.objects.filter(
+            parent_id=pk,
+            project_pages__project_id=project_id,
+            workspace__slug=slug,
+            project_pages__deleted_at__isnull=True,
+        ).update(parent=None)
+
+        page.delete()
+
+        # Delete the user favorite page
+        UserFavorite.objects.filter(
+            project_id=project_id,
+            workspace__slug=slug,
+            entity_identifier=pk,
+            entity_type="page",
+        ).delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
