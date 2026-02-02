@@ -2,6 +2,7 @@ from io import StringIO
 from html.parser import HTMLParser
 from bs4 import BeautifulSoup
 import re
+import markdown
 
 
 class MLStripper(HTMLParser):
@@ -119,7 +120,7 @@ def html_to_markdown(html):
                 # Get index for ordered list
                 siblings = list(parent.children)
                 idx = 1
-                for i, sibling in enumerate(siblings):
+                for sibling in siblings:
                     if sibling == element:
                         break
                     if hasattr(sibling, "name") and sibling.name == "li":
@@ -191,11 +192,217 @@ def html_to_markdown(html):
 
         return "".join(result)
 
-    markdown = process_element(soup)
+    markdown_result = process_element(soup)
 
     # Clean up multiple newlines
-    markdown = re.sub(r"\n{3,}", "\n\n", markdown)
+    markdown_result = re.sub(r"\n{3,}", "\n\n", markdown_result)
     # Clean up leading/trailing whitespace
-    markdown = markdown.strip()
+    markdown_result = markdown_result.strip()
 
-    return markdown
+    return markdown_result
+
+
+def is_markdown_content(content):
+    """
+    Detect if the content is markdown rather than HTML.
+
+    This checks for common markdown patterns that indicate the content
+    is raw markdown text rather than proper HTML.
+
+    Args:
+        content: String content to analyze
+
+    Returns:
+        Boolean indicating if content appears to be markdown
+    """
+    if not content:
+        return False
+
+    # First, check if it looks like HTML by parsing it
+    soup = BeautifulSoup(content, "html.parser")
+
+    # Get the text content, preserving line breaks between elements
+    text_content = soup.get_text(separator="\n")
+
+    # If there's no text content, it's not markdown
+    if not text_content.strip():
+        return False
+
+    # Check if the HTML structure is minimal (just wrapping tags like <p>)
+    # and the content inside contains markdown patterns
+    all_tags = soup.find_all(True)
+
+    # If there are no HTML tags, check the raw content for markdown
+    if not all_tags:
+        return _has_markdown_patterns(content)
+
+    # Tags that are considered acceptable for markdown detection
+    # These include wrapper tags AND inline formatting tags that may
+    # have been partially converted by the editor
+    acceptable_tags = {
+        "p", "div", "span",  # wrapper tags
+        "strong", "b",  # bold (already converted)
+        "em", "i",  # italic (already converted)
+        "br",  # line breaks
+    }
+    is_acceptable_structure = all(tag.name in acceptable_tags for tag in all_tags)
+
+    if is_acceptable_structure:
+        # Check if the text content contains markdown patterns
+        return _has_markdown_patterns(text_content)
+
+    return False
+
+
+def _has_markdown_patterns(text):
+    """
+    Check if text contains markdown formatting patterns.
+
+    Args:
+        text: Plain text to check for markdown patterns
+
+    Returns:
+        Boolean indicating if markdown patterns are detected
+    """
+    if not text:
+        return False
+
+    # Track which pattern types are found
+    found_patterns = set()
+
+    # Markdown heading patterns (# Heading) - match at start of line or after whitespace
+    # This handles headings that may appear in the middle of content
+    heading_pattern = r"(?:^|\s)#{1,6}\s+\S+"
+
+    # Bold pattern (**text** or __text__)
+    bold_pattern = r"\*\*[^*]+\*\*|__[^_]+__"
+
+    # Italic pattern (*text* or _text_) - be careful not to match underscores in words
+    italic_pattern = r"(?<!\w)\*[^*]+\*(?!\w)|(?<!\w)_[^_]+_(?!\w)"
+
+    # List patterns - matches lines starting with - or * or + followed by space, or numbered lists
+    unordered_list_pattern = r"^[\s]*[-*+]\s+.+"
+    ordered_list_pattern = r"^[\s]*\d+\.\s+.+"
+
+    # Link pattern [text](url)
+    link_pattern = r"\[[^\]]+\]\([^)]+\)"
+
+    # Code block pattern (``` or indented code)
+    code_block_pattern = r"```[\s\S]*?```"
+
+    # Inline code pattern (`code`)
+    inline_code_pattern = r"`[^`]+`"
+
+    # Blockquote pattern (> text)
+    blockquote_pattern = r"^>\s+.+"
+
+    # Check each line for patterns
+    list_item_count = 0
+    for line in text.split("\n"):
+        line = line.strip()
+        if re.search(r"^#{1,6}\s+.+", line):
+            found_patterns.add("heading")
+        if re.search(unordered_list_pattern, line) or re.search(ordered_list_pattern, line):
+            list_item_count += 1
+        if re.search(blockquote_pattern, line):
+            found_patterns.add("blockquote")
+
+    # Also check for headings anywhere in the text (not just at line start)
+    # This handles content where line breaks were lost
+    if re.search(heading_pattern, text, re.MULTILINE):
+        found_patterns.add("heading")
+
+    # Only count lists if there are at least 2 items (avoid single dash false positives)
+    if list_item_count >= 2:
+        found_patterns.add("list")
+
+    # Check entire text for inline patterns
+    if re.search(bold_pattern, text):
+        found_patterns.add("bold")
+    if re.search(italic_pattern, text):
+        found_patterns.add("italic")
+    if re.search(link_pattern, text):
+        found_patterns.add("link")
+    if re.search(inline_code_pattern, text):
+        found_patterns.add("inline_code")
+
+    # Check for code blocks
+    if re.search(code_block_pattern, text, re.MULTILINE):
+        found_patterns.add("code_block")
+
+    # If we found a heading pattern (strong indicator of markdown), that's enough
+    # For other patterns, require at least 2 different types
+    if "heading" in found_patterns:
+        return True
+
+    # Require at least 2 different pattern types to be confident it's markdown
+    # This avoids false positives from plain text with occasional dashes or asterisks
+    return len(found_patterns) >= 2
+
+
+def markdown_to_html(md_content):
+    """
+    Convert Markdown content to HTML format.
+
+    Args:
+        md_content: Markdown string to convert
+
+    Returns:
+        HTML formatted string
+    """
+    if not md_content:
+        return "<p></p>"
+
+    # Preprocess: Add line breaks before markdown heading patterns that appear inline
+    # This handles cases where headings appear without proper line breaks
+    # Match heading patterns (# to ######) that aren't at the start of a line
+    preprocessed = re.sub(r"(?<!^)(?<!\n)(#{1,6}\s+)", r"\n\1", md_content)
+
+    # Use the markdown library to convert to HTML
+    # Enable common extensions for better compatibility
+    html_content = markdown.markdown(
+        preprocessed,
+        extensions=[
+            "tables",
+            "fenced_code",
+            "nl2br",
+            "sane_lists",
+        ],
+    )
+
+    # If the result is empty, return default
+    if not html_content or not html_content.strip():
+        return "<p></p>"
+
+    return html_content
+
+
+def process_description_html(content):
+    """
+    Process description_html content.
+
+    If the content appears to be markdown wrapped in minimal HTML,
+    convert it to proper HTML first. Handles hybrid content where
+    some formatting is already HTML (e.g., <strong>) but other
+    markdown syntax remains unconverted (e.g., # headings).
+
+    Args:
+        content: The description_html content
+
+    Returns:
+        Properly formatted HTML content
+    """
+    if not content or content == "<p></p>":
+        return content
+
+    # Check if the content is markdown wrapped in simple HTML
+    if is_markdown_content(content):
+        # For hybrid content (mix of HTML formatting and raw markdown),
+        # first convert existing HTML to markdown, then convert all to HTML
+        # This ensures consistent output
+        md_content = html_to_markdown(content)
+
+        # Convert the unified markdown back to HTML
+        return markdown_to_html(md_content)
+
+    return content

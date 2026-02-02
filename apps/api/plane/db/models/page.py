@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.db import models
 
 # Module imports
-from plane.utils.html_processor import strip_tags, html_to_markdown
+from plane.utils.html_processor import strip_tags, html_to_markdown, process_description_html
 
 from .base import BaseModel
 
@@ -65,6 +65,11 @@ class Page(BaseModel):
         return f"{self.owned_by.email} <{self.name}>"
 
     def save(self, *args, **kwargs):
+        # Process description_html to handle markdown content sent via API
+        # This converts markdown to proper HTML if detected
+        if self.description_html and self.description_html != "<p></p>":
+            self.description_html = process_description_html(self.description_html)
+
         # Strip the html tags using html parser
         self.description_stripped = (
             None
@@ -177,6 +182,11 @@ class PageVersion(BaseModel):
         ordering = ("-created_at",)
 
     def save(self, *args, **kwargs):
+        # Process description_html to handle markdown content sent via API
+        # This converts markdown to proper HTML if detected
+        if self.description_html and self.description_html != "<p></p>":
+            self.description_html = process_description_html(self.description_html)
+
         # Strip the html tags using html parser
         self.description_stripped = (
             None
