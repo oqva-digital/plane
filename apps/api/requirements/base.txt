@@ -48,8 +48,7 @@ openpyxl==3.1.2
 python-json-logger==3.3.0
 # html parser
 beautifulsoup4==4.12.3
-# markdown
-markdown==3.7.1
+markdown==3.10.1
 # analytics
 posthog==3.5.0
 # crypto
@@ -73,5 +72,3 @@ opentelemetry-exporter-otlp==1.28.1
 drf-spectacular==0.28.0
 # html sanitizer
 nh3==0.2.18
-# markdown to html
-markdown==3.7
