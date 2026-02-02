@@ -120,7 +120,7 @@ def html_to_markdown(html):
                 # Get index for ordered list
                 siblings = list(parent.children)
                 idx = 1
-                for i, sibling in enumerate(siblings):
+                for sibling in siblings:
                     if sibling == element:
                         break
                     if hasattr(sibling, "name") and sibling.name == "li":
