@@ -1,33 +1,27 @@
+# Django imports
+from django.db.models import Exists, OuterRef
+
 # Third party imports
 from rest_framework import status
 from rest_framework.response import Response
-from drf_spectacular.utils import OpenApiResponse
-
-# Django imports
-from django.db.models import Q
 
 # Module imports
-from plane.api.serializers.page import (
+from plane.api.serializers import (
     PageSerializer,
-    PageDetailSerializer,
+    PageCreateSerializer,
 )
 from plane.app.permissions import ProjectEntityPermission
 from plane.db.models import (
     Page,
-    PageLog,
     Project,
+    ProjectMember,
+    ProjectPage,
+    UserFavorite,
 )
+from plane.bgtasks.webhook_task import model_activity
+from plane.utils.host import base_host
+
 from .base import BaseAPIView
-from plane.utils.openapi.decorators import page_docs
-from plane.utils.openapi import (
-    CURSOR_PARAMETER,
-    PER_PAGE_PARAMETER,
-    ORDER_BY_PARAMETER,
-    FIELDS_PARAMETER,
-    EXPAND_PARAMETER,
-    create_paginated_response,
-    PAGE_ID_PARAMETER,
-)
 
 
 class PageListCreateAPIEndpoint(BaseAPIView):
@@ -41,39 +35,58 @@ class PageListCreateAPIEndpoint(BaseAPIView):
 
     def get_queryset(self):
         return (
-            Page.objects.filter(workspace__slug=self.kwargs.get("slug"))
-            .filter(project_pages__project_id=self.kwargs.get("project_id"))
-            .filter(
-                project_pages__project__project_projectmember__member=self.request.user,
-                project_pages__project__project_projectmember__is_active=True,
+            Page.objects.filter(
+                project_pages__project_id=self.kwargs.get("project_id"),
+                project_pages__deleted_at__isnull=True,
             )
-            .filter(Q(owned_by=self.request.user) | Q(access=0))
-            .select_related("workspace")
-            .select_related("owned_by")
-            .order_by(self.request.GET.get("order_by", "-created_at"))
-            .distinct()
+            .filter(workspace__slug=self.kwargs.get("slug"))
+            .filter(archived_at__isnull=True)
+            .select_related("workspace", "owned_by", "parent")
+            .prefetch_related("labels", "projects")
+            .annotate(
+                is_favorite=Exists(
+                    UserFavorite.objects.filter(
+                        entity_type="page",
+                        entity_identifier=OuterRef("pk"),
+                        user=self.request.user,
+                        project_id=self.kwargs.get("project_id"),
+                    )
+                )
+            )
+            .order_by("-created_at")
         )
 
-    @page_docs(
-        operation_id="list_pages",
-        summary="List pages",
-        description="Retrieve all pages in a project.",
-        parameters=[
-            CURSOR_PARAMETER,
-            PER_PAGE_PARAMETER,
-            ORDER_BY_PARAMETER,
-            FIELDS_PARAMETER,
-            EXPAND_PARAMETER,
-        ],
-        responses={
-            200: create_paginated_response(
-                PageSerializer,
-                "PaginatedPageResponse",
-                "Paginated list of pages",
-                "Paginated Pages",
-            ),
-        },
-    )
+    def post(self, request, slug, project_id):
+        """Create page
+
+        Create a new project page with specified name and content.
+        """
+        project = Project.objects.get(pk=project_id, workspace__slug=slug)
+        serializer = PageCreateSerializer(
+            data=request.data,
+            context={
+                "project_id": project_id,
+                "workspace_id": project.workspace_id,
+                "owned_by_id": request.user.id,
+            },
+        )
+        if serializer.is_valid():
+            serializer.save()
+            # Send the model activity webhook
+            model_activity.delay(
+                model_name="page",
+                model_id=str(serializer.instance.id),
+                requested_data=request.data,
+                current_instance=None,
+                actor_id=request.user.id,
+                slug=slug,
+                origin=base_host(request=request, is_app=True),
+            )
+            page = self.get_queryset().get(pk=serializer.instance.id)
+            response_serializer = PageSerializer(page)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     def get(self, request, slug, project_id):
         """List pages
 
@@ -81,7 +94,7 @@ class PageListCreateAPIEndpoint(BaseAPIView):
         """
         return self.paginate(
             request=request,
-            queryset=(self.get_queryset()),
+            queryset=self.get_queryset(),
             on_results=lambda pages: PageSerializer(
                 pages, many=True, fields=self.fields, expand=self.expand
             ).data,
@@ -91,52 +104,151 @@ class PageListCreateAPIEndpoint(BaseAPIView):
 class PageDetailAPIEndpoint(BaseAPIView):
     """Page Detail Endpoint"""
 
-    serializer_class = PageSerializer
     model = Page
-    webhook_event = "page"
     permission_classes = [ProjectEntityPermission]
+    serializer_class = PageSerializer
+    webhook_event = "page"
     use_read_replica = True
 
     def get_queryset(self):
         return (
-            Page.objects.filter(workspace__slug=self.kwargs.get("slug"))
-            .filter(project_pages__project_id=self.kwargs.get("project_id"))
-            .filter(
-                project_pages__project__project_projectmember__member=self.request.user,
-                project_pages__project__project_projectmember__is_active=True,
+            Page.objects.filter(
+                project_pages__project_id=self.kwargs.get("project_id"),
+                project_pages__deleted_at__isnull=True,
             )
-            .filter(Q(owned_by=self.request.user) | Q(access=0))
-            .select_related("workspace")
-            .select_related("owned_by")
-            .distinct()
+            .filter(workspace__slug=self.kwargs.get("slug"))
+            .select_related("workspace", "owned_by", "parent")
+            .prefetch_related("labels", "projects")
+            .annotate(
+                is_favorite=Exists(
+                    UserFavorite.objects.filter(
+                        entity_type="page",
+                        entity_identifier=OuterRef("pk"),
+                        user=self.request.user,
+                        project_id=self.kwargs.get("project_id"),
+                    )
+                )
+            )
+            .order_by("-created_at")
         )
 
-    @page_docs(
-        operation_id="retrieve_page",
-        summary="Retrieve page",
-        description="Retrieve details of a specific page.",
-        parameters=[
-            PAGE_ID_PARAMETER,
-            FIELDS_PARAMETER,
-            EXPAND_PARAMETER,
-        ],
-        responses={
-            200: OpenApiResponse(
-                description="Page details",
-                response=PageDetailSerializer,
-            ),
-            404: OpenApiResponse(description="Page not found"),
-        },
-    )
     def get(self, request, slug, project_id, pk):
         """Retrieve page
 
         Retrieve details of a specific page.
         """
         page = self.get_queryset().get(pk=pk)
-        issue_ids = PageLog.objects.filter(page_id=pk, entity_name="issue").values_list(
-            "entity_identifier", flat=True
+        serializer = PageSerializer(page, fields=self.fields, expand=self.expand)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request, slug, project_id, pk):
+        """Update page
+
+        Partially update an existing page's properties like name or description_html.
+        """
+        page = Page.objects.get(
+            pk=pk,
+            workspace__slug=slug,
+            project_pages__project_id=project_id,
+            project_pages__deleted_at__isnull=True,
         )
-        data = PageDetailSerializer(page, fields=self.fields, expand=self.expand).data
-        data["issue_ids"] = issue_ids
-        return Response(data, status=status.HTTP_200_OK)
+
+        if page.is_locked:
+            return Response(
+                {"error": "Page is locked"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Only update access if the page owner is the requesting user
+        if (
+            page.access != request.data.get("access", page.access)
+            and page.owned_by_id != request.user.id
+        ):
+            return Response(
+                {"error": "Access cannot be updated since this page is owned by someone else"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = PageSerializer(page, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            # Send the model activity webhook
+            model_activity.delay(
+                model_name="page",
+                model_id=str(pk),
+                requested_data=request.data,
+                current_instance=None,
+                actor_id=request.user.id,
+                slug=slug,
+                origin=base_host(request=request, is_app=True),
+            )
+            page = self.get_queryset().get(pk=pk)
+            response_serializer = PageSerializer(page)
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, slug, project_id, pk):
+        """Delete page
+
+        Permanently remove a page from a project.
+        The page must be archived before it can be deleted.
+        Only the owner or admin can delete the page.
+        """
+        page = Page.objects.get(
+            pk=pk,
+            workspace__slug=slug,
+            project_pages__project_id=project_id,
+            project_pages__deleted_at__isnull=True,
+        )
+
+        if page.archived_at is None:
+            return Response(
+                {"error": "The page should be archived before deleting"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Only owner or project admin can delete the page
+        if page.owned_by_id != request.user.id and (
+            not ProjectMember.objects.filter(
+                workspace__slug=slug,
+                member=request.user,
+                role=20,
+                project_id=project_id,
+                is_active=True,
+            ).exists()
+        ):
+            return Response(
+                {"error": "Only admin or owner can delete the page"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Send the model activity webhook before deletion
+        model_activity.delay(
+            model_name="page",
+            model_id=str(pk),
+            requested_data=None,
+            current_instance=None,
+            actor_id=request.user.id,
+            slug=slug,
+            origin=base_host(request=request, is_app=True),
+        )
+
+        # Remove parent from all children
+        Page.objects.filter(
+            parent_id=pk,
+            project_pages__project_id=project_id,
+            workspace__slug=slug,
+            project_pages__deleted_at__isnull=True,
+        ).update(parent=None)
+
+        page.delete()
+
+        # Delete the user favorite page
+        UserFavorite.objects.filter(
+            project_id=project_id,
+            workspace__slug=slug,
+            entity_identifier=pk,
+            entity_type="page",
+        ).delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

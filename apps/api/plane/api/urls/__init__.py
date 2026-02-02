@@ -19,6 +19,7 @@ urlpatterns = [
     *label_patterns,
     *member_patterns,
     *module_patterns,
+    *page_patterns,
     *project_patterns,
     *state_patterns,
     *user_patterns,
