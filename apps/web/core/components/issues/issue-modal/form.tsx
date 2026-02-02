@@ -1,3 +1,4 @@
+import type { FC } from "react";
 import React, { useState, useRef, useEffect } from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
@@ -10,6 +11,7 @@ import { useTranslation } from "@plane/i18n";
 import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TIssue, TWorkspaceDraftIssue } from "@plane/types";
+import { EIssuesStoreType } from "@plane/types";
 // hooks
 import { ToggleSwitch } from "@plane/ui";
 import {
@@ -48,11 +50,8 @@ export interface IssueFormProps {
   data?: Partial<TIssue>;
   issueTitleRef: React.MutableRefObject<HTMLInputElement | null>;
   isCreateMoreToggleEnabled: boolean;
-  onCreateMoreToggleChange: (value: boolean) => void;
-  isCopyDescendantsEnabled?: boolean;
-  onCopyDescendantsChange?: (value: boolean) => void;
-  copyProgress?: { done: number; total: number } | null;
   onAssetUpload: (assetId: string) => void;
+  onCreateMoreToggleChange: (value: boolean) => void;
   onChange?: (formData: Partial<TIssue> | null) => void;
   onClose: () => void;
   onSubmit: (values: Partial<TIssue>, is_draft_issue?: boolean) => Promise<void>;
@@ -69,7 +68,7 @@ export interface IssueFormProps {
   handleDraftAndClose?: () => void;
   isProjectSelectionDisabled?: boolean;
   showActionButtons?: boolean;
-  dataResetProperties?: unknown[];
+  dataResetProperties?: any[];
 }
 
 export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormProps) {
@@ -84,9 +83,6 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
     projectId: defaultProjectId,
     isCreateMoreToggleEnabled,
     onCreateMoreToggleChange,
-    isCopyDescendantsEnabled = false,
-    onCopyDescendantsChange,
-    copyProgress = null,
     isDraft,
     moveToIssue = false,
     modalTitle = `${data?.id ? t("update") : isDraft ? t("create_a_draft") : t("create_new_issue")}`,
@@ -163,8 +159,7 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
 
   // derived values
   const projectDetails = projectId ? getProjectById(projectId) : undefined;
-  const isCopyingDescendants = copyProgress != null;
-  const isDisabled = isSubmitting || isApplyingTemplate || isCopyingDescendants;
+  const isDisabled = isSubmitting || isApplyingTemplate;
 
   const { getIndex } = getTabIndex(ETabIndices.ISSUE_FORM, isMobile);
 
@@ -180,15 +175,16 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
         reset(getUpdateFormDataForReset(projectId, getValues()));
       }
     }
-    if (projectId && routeProjectId !== projectId) void fetchCycles(workspaceSlug?.toString(), projectId);
+    if (projectId && routeProjectId !== projectId) fetchCycles(workspaceSlug?.toString(), projectId);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
-  // Reset form when data prop changes (do not reset during copy-with-descendants so title/description stay)
+  // Reset form when data prop changes
   useEffect(() => {
-    if (isCopyingDescendants || !data) return;
-    reset({ ...DEFAULT_WORK_ITEM_FORM_VALUES, project_id: projectId, ...data });
+    if (data) {
+      reset({ ...DEFAULT_WORK_ITEM_FORM_VALUES, project_id: projectId, ...data });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...dataResetProperties]);
 
@@ -208,7 +204,7 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
 
   useEffect(() => {
     if (workItemTemplateId && editorRef.current) {
-      void handleTemplateChange({
+      handleTemplateChange({
         workspaceSlug: workspaceSlug?.toString(),
         reset,
         editorRef,
@@ -249,20 +245,18 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
         };
 
     // this condition helps to move the issues from draft to project issues
-    if (Object.prototype.hasOwnProperty.call(formData, "is_draft")) submitData.is_draft = formData.is_draft;
+    if (formData.hasOwnProperty("is_draft")) submitData.is_draft = formData.is_draft;
 
     await onSubmit(submitData, is_draft_issue)
       .then(() => {
         setGptAssistantModal(false);
-        // Do not reset form when copy-with-descendants and modal will close (create more off)
-        const isCopyWithDescendantsAndClosing = data?.sourceIssueId && !isCreateMoreToggleEnabled;
         if (isCreateMoreToggleEnabled && workItemTemplateId) {
-          void handleTemplateChange({
+          handleTemplateChange({
             workspaceSlug: workspaceSlug?.toString(),
             reset,
             editorRef,
           });
-        } else if (!isCopyWithDescendantsAndClosing) {
+        } else {
           reset({
             ...DEFAULT_WORK_ITEM_FORM_VALUES,
             ...(isCreateMoreToggleEnabled ? { ...data } : {}),
@@ -272,7 +266,6 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
           });
           editorRef?.current?.clearEditor();
         }
-        return undefined;
       })
       .catch((error) => {
         console.error(error);
@@ -317,13 +310,9 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
   };
 
   // debounced duplicate issues swr
-  const workspaceIdForDupes =
-    projectDetails?.workspace && typeof projectDetails.workspace === "object" && "id" in projectDetails.workspace
-      ? (projectDetails.workspace as { id: string }).id
-      : undefined;
   const { duplicateIssues } = useDebouncedDuplicateIssues(
     workspaceSlug?.toString(),
-    workspaceIdForDupes,
+    projectDetails?.workspace.toString(),
     projectId ?? undefined,
     {
       name: watch("name"),
@@ -349,7 +338,6 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
     setSelectedParentIssue(
       convertWorkItemDataToSearchResponse(workspaceSlug?.toString(), issue, projectDetails, stateDetails)
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watch, getIssueById, getProjectById, selectedParentIssue, getStateById]);
 
   // executing this useEffect when isDirty changes
@@ -388,150 +376,118 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
         <div className="rounded-lg w-full">
           <form
             ref={formRef}
+            onSubmit={handleSubmit((data) => handleFormSubmit(data))}
             className="flex flex-col w-full"
-            onSubmit={(e) => {
-              void handleSubmit((data) => {
-                void handleFormSubmit(data);
-              })(e);
-            }}
           >
-            <fieldset
-              className="min-w-0 border-0 p-0 m-0"
-              disabled={isCopyingDescendants}
-              aria-busy={isCopyingDescendants}
-            >
-              <div className="p-5 rounded-t-lg bg-surface-1">
-                <h3 className="text-h4-medium text-secondary pb-2">{modalTitle}</h3>
-                <div className="flex items-center justify-between pt-2 pb-4">
-                  <div className="flex items-center gap-x-1">
-                    <IssueProjectSelect
+            <div className="p-5 rounded-t-lg bg-surface-1">
+              <h3 className="text-h4-medium text-secondary pb-2">{modalTitle}</h3>
+              <div className="flex items-center justify-between pt-2 pb-4">
+                <div className="flex items-center gap-x-1">
+                  <IssueProjectSelect
+                    control={control}
+                    disabled={!!data?.id || !!data?.sourceIssueId || isProjectSelectionDisabled}
+                    handleFormChange={handleFormChange}
+                  />
+                  {projectId && (
+                    <IssueTypeSelect
                       control={control}
-                      disabled={!!data?.id || !!data?.sourceIssueId || isProjectSelectionDisabled}
+                      projectId={projectId}
+                      editorRef={editorRef}
+                      disabled={!!data?.sourceIssueId}
                       handleFormChange={handleFormChange}
+                      renderChevron
                     />
-                    {projectId && (
-                      <IssueTypeSelect
-                        control={control}
-                        projectId={projectId}
-                        editorRef={editorRef}
-                        disabled={!!data?.sourceIssueId}
-                        handleFormChange={handleFormChange}
-                        renderChevron
-                      />
-                    )}
-                    {projectId && !data?.id && !data?.sourceIssueId && (
-                      <WorkItemTemplateSelect
-                        projectId={projectId}
-                        typeId={watch("type_id")}
-                        handleModalClose={() => {
-                          if (handleDraftAndClose) {
-                            handleDraftAndClose();
-                          } else {
-                            onClose();
-                          }
-                        }}
-                        handleFormChange={handleFormChange}
-                        renderChevron
-                      />
-                    )}
-                  </div>
-                  {duplicateIssues.length > 0 && (
-                    <DeDupeButtonRoot
-                      workspaceSlug={workspaceSlug?.toString()}
-                      isDuplicateModalOpen={isDuplicateModalOpen}
-                      label={
-                        duplicateIssues.length === 1
-                          ? `${duplicateIssues.length} ${t("duplicate_issue_found")}`
-                          : `${duplicateIssues.length} ${t("duplicate_issues_found")}`
-                      }
-                      handleOnClick={() => handleDuplicateIssueModal(!isDuplicateModalOpen)}
+                  )}
+                  {projectId && !data?.id && !data?.sourceIssueId && (
+                    <WorkItemTemplateSelect
+                      projectId={projectId}
+                      typeId={watch("type_id")}
+                      handleModalClose={() => {
+                        if (handleDraftAndClose) {
+                          handleDraftAndClose();
+                        } else {
+                          onClose();
+                        }
+                      }}
+                      handleFormChange={handleFormChange}
+                      renderChevron
                     />
                   )}
                 </div>
-                {watch("parent_id") && selectedParentIssue && (
-                  <div className="pb-4">
-                    <IssueParentTag
-                      control={control}
-                      selectedParentIssue={selectedParentIssue}
-                      handleFormChange={handleFormChange}
-                      setSelectedParentIssue={setSelectedParentIssue}
-                    />
-                  </div>
-                )}
-                <div className="space-y-1">
-                  <IssueTitleInput
-                    control={control}
-                    issueTitleRef={issueTitleRef}
-                    formState={formState}
-                    handleFormChange={handleFormChange}
-                  />
-                </div>
-              </div>
-              <div
-                className={cn(
-                  "pb-4 space-y-3 bg-surface-1",
-                  activeAdditionalPropertiesLength > 4 &&
-                    "max-h-[45vh] overflow-hidden overflow-y-auto vertical-scrollbar scrollbar-sm"
-                )}
-              >
-                <div className="px-5">
-                  <IssueDescriptionEditor
-                    control={control}
-                    isDraft={isDraft}
-                    issueName={watch("name")}
-                    issueId={data?.id}
-                    descriptionHtmlData={data?.description_html}
-                    editorRef={editorRef}
-                    submitBtnRef={submitBtnRef}
-                    gptAssistantModal={gptAssistantModal}
+                {duplicateIssues.length > 0 && (
+                  <DeDupeButtonRoot
                     workspaceSlug={workspaceSlug?.toString()}
-                    projectId={projectId}
-                    handleFormChange={handleFormChange}
-                    handleDescriptionHTMLDataChange={(description_html) =>
-                      setValue<"description_html">("description_html", description_html)
+                    isDuplicateModalOpen={isDuplicateModalOpen}
+                    label={
+                      duplicateIssues.length === 1
+                        ? `${duplicateIssues.length} ${t("duplicate_issue_found")}`
+                        : `${duplicateIssues.length} ${t("duplicate_issues_found")}`
                     }
-                    setGptAssistantModal={setGptAssistantModal}
-                    handleGptAssistantClose={() => reset(getValues())}
-                    onAssetUpload={onAssetUpload}
-                    onClose={onClose}
+                    handleOnClick={() => handleDuplicateIssueModal(!isDuplicateModalOpen)}
+                  />
+                )}
+              </div>
+              {watch("parent_id") && selectedParentIssue && (
+                <div className="pb-4">
+                  <IssueParentTag
+                    control={control}
+                    selectedParentIssue={selectedParentIssue}
+                    handleFormChange={handleFormChange}
+                    setSelectedParentIssue={setSelectedParentIssue}
                   />
                 </div>
-                <WorkItemModalAdditionalProperties
-                  isDraft={isDraft}
-                  workItemId={data?.id ?? data?.sourceIssueId}
-                  projectId={projectId}
-                  workspaceSlug={workspaceSlug?.toString()}
+              )}
+              <div className="space-y-1">
+                <IssueTitleInput
+                  control={control}
+                  issueTitleRef={issueTitleRef}
+                  formState={formState}
+                  handleFormChange={handleFormChange}
                 />
               </div>
-            </fieldset>
+            </div>
+            <div
+              className={cn(
+                "pb-4 space-y-3 bg-surface-1",
+                activeAdditionalPropertiesLength > 4 &&
+                  "max-h-[45vh] overflow-hidden overflow-y-auto vertical-scrollbar scrollbar-sm"
+              )}
+            >
+              <div className="px-5">
+                <IssueDescriptionEditor
+                  control={control}
+                  isDraft={isDraft}
+                  issueName={watch("name")}
+                  issueId={data?.id}
+                  descriptionHtmlData={data?.description_html}
+                  editorRef={editorRef}
+                  submitBtnRef={submitBtnRef}
+                  gptAssistantModal={gptAssistantModal}
+                  workspaceSlug={workspaceSlug?.toString()}
+                  projectId={projectId}
+                  handleFormChange={handleFormChange}
+                  handleDescriptionHTMLDataChange={(description_html) =>
+                    setValue<"description_html">("description_html", description_html)
+                  }
+                  setGptAssistantModal={setGptAssistantModal}
+                  handleGptAssistantClose={() => reset(getValues())}
+                  onAssetUpload={onAssetUpload}
+                  onClose={onClose}
+                />
+              </div>
+              <WorkItemModalAdditionalProperties
+                isDraft={isDraft}
+                workItemId={data?.id ?? data?.sourceIssueId}
+                projectId={projectId}
+                workspaceSlug={workspaceSlug?.toString()}
+              />
+            </div>
             <div
               className={cn(
                 "px-4 py-3 border-t-[0.5px] border-subtle rounded-b-lg bg-surface-1",
                 activeAdditionalPropertiesLength > 0 && "shadow-raised-100"
               )}
             >
-              {isCopyingDescendants && copyProgress && (
-                <div className="mb-4 flex flex-col gap-1.5">
-                  <div
-                    className="flex h-1.5 w-full overflow-hidden rounded-full border border-subtle bg-default-200"
-                    role="progressbar"
-                    aria-valuenow={copyProgress.done}
-                    aria-valuemin={0}
-                    aria-valuemax={copyProgress.total}
-                  >
-                    <div
-                      className="h-full min-h-full flex-shrink-0 rounded-full transition-[width] duration-300 ease-out"
-                      style={{
-                        width: `${copyProgress.total > 0 ? Math.max(2, (100 * copyProgress.done) / copyProgress.total) : 0}%`,
-                        backgroundColor: "#22c55e",
-                      }}
-                    />
-                  </div>
-                  <span className="text-caption-sm-medium text-default text-center">
-                    {t("copying")} {copyProgress.done}/{copyProgress.total}
-                  </span>
-                </div>
-              )}
               <div className="pb-3">
                 <IssueDefaultProperties
                   control={control}
@@ -549,86 +505,67 @@ export const IssueFormRoot = observer(function IssueFormRoot(props: IssueFormPro
               </div>
               {showActionButtons && (
                 <div
-                  className="flex flex-col gap-3 pb-3 pt-6 border-t-[0.5px] border-subtle"
+                  className="flex items-center justify-end gap-4 pb-3 pt-6 border-t-[0.5px] border-subtle"
                   tabIndex={getIndex("create_more")}
                 >
-                  <div className="flex items-center justify-end gap-4">
-                    {!data?.id && (
-                      <div
-                        className="inline-flex items-center gap-1.5 cursor-pointer"
-                        tabIndex={0}
-                        onClick={() => onCreateMoreToggleChange(!isCreateMoreToggleEnabled)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") onCreateMoreToggleChange(!isCreateMoreToggleEnabled);
-                        }}
-                        role="button"
-                      >
-                        <ToggleSwitch value={isCreateMoreToggleEnabled} onChange={() => {}} size="sm" />
-                        <span className="text-caption-sm-regular">{t("create_more")}</span>
-                      </div>
-                    )}
-                    {!data?.id && !!data?.sourceIssueId && onCopyDescendantsChange && (
-                      <div
-                        className="inline-flex items-center gap-1.5 cursor-pointer"
-                        tabIndex={0}
-                        onClick={() => onCopyDescendantsChange(!isCopyDescendantsEnabled)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") onCopyDescendantsChange(!isCopyDescendantsEnabled);
-                        }}
-                        role="button"
-                      >
-                        <ToggleSwitch value={isCopyDescendantsEnabled} onChange={() => {}} size="sm" />
-                        <span className="text-caption-sm-regular">{t("copy_descendants")}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <div tabIndex={getIndex("discard_button")}>
-                        <Button
-                          variant="secondary"
-                          size="lg"
-                          onClick={() => {
-                            if (editorRef.current?.isEditorReadyToDiscard()) {
-                              onClose();
-                            } else {
-                              setToast({
-                                type: TOAST_TYPE.ERROR,
-                                title: "Error!",
-                                message: "Editor is still processing changes. Please wait before proceeding.",
-                              });
-                            }
-                          }}
-                        >
-                          {t("discard")}
-                        </Button>
-                      </div>
-                      <div tabIndex={isDraft ? getIndex("submit_button") : getIndex("draft_button")}>
-                        <Button
-                          variant={moveToIssue ? "secondary" : "primary"}
-                          size="lg"
-                          type="submit"
-                          ref={submitBtnRef}
-                          loading={isSubmitting || isCopyingDescendants}
-                          disabled={isDisabled}
-                        >
-                          {isSubmitting || isCopyingDescendants ? primaryButtonText.loading : primaryButtonText.default}
-                        </Button>
-                      </div>
-
-                      {moveToIssue && (
-                        <Button
-                          variant="primary"
-                          type="button"
-                          loading={isMoving}
-                          onClick={() => {
-                            void handleMoveToProjects();
-                          }}
-                          disabled={isMoving}
-                          size="lg"
-                        >
-                          {t("add_to_project")}
-                        </Button>
-                      )}
+                  {!data?.id && (
+                    <div
+                      className="inline-flex items-center gap-1.5 cursor-pointer"
+                      onClick={() => onCreateMoreToggleChange(!isCreateMoreToggleEnabled)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") onCreateMoreToggleChange(!isCreateMoreToggleEnabled);
+                      }}
+                      role="button"
+                    >
+                      <ToggleSwitch value={isCreateMoreToggleEnabled} onChange={() => {}} size="sm" />
+                      <span className="text-caption-sm-regular">{t("create_more")}</span>
                     </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <div tabIndex={getIndex("discard_button")}>
+                      <Button
+                        variant="secondary"
+                        size="lg"
+                        onClick={() => {
+                          if (editorRef.current?.isEditorReadyToDiscard()) {
+                            onClose();
+                          } else {
+                            setToast({
+                              type: TOAST_TYPE.ERROR,
+                              title: "Error!",
+                              message: "Editor is still processing changes. Please wait before proceeding.",
+                            });
+                          }
+                        }}
+                      >
+                        {t("discard")}
+                      </Button>
+                    </div>
+                    <div tabIndex={isDraft ? getIndex("submit_button") : getIndex("draft_button")}>
+                      <Button
+                        variant={moveToIssue ? "secondary" : "primary"}
+                        size="lg"
+                        type="submit"
+                        ref={submitBtnRef}
+                        loading={isSubmitting}
+                        disabled={isDisabled}
+                      >
+                        {isSubmitting ? primaryButtonText.loading : primaryButtonText.default}
+                      </Button>
+                    </div>
+
+                    {moveToIssue && (
+                      <Button
+                        variant="primary"
+                        type="button"
+                        loading={isMoving}
+                        onClick={handleMoveToProjects}
+                        disabled={isMoving}
+                        size="lg"
+                      >
+                        {t("add_to_project")}
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
