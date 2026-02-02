@@ -1,0 +1,51 @@
+{
+  "verdict": "NEEDS_CHANGES",
+  "score": 5,
+  "summary": "The implementation fixes the React hydration error by replacing refs with state for data preservation, which is the correct approach. However, this PR introduces significant scope creep by adding the entire 'copy descendants' feature, which is unrelated to fixing the hydration bug. There are also potential issues with error handling and a possible memory concern with the timeout cleanup.",
+  "issues": [
+    {
+      "severity": "major",
+      "file": "apps/web/core/components/issues/issue-modal/base.tsx",
+      "line": 113,
+      "description": "Variable shadowing: the timeout variable `t` shadows the `t` from `useTranslation()` imported at line 70. This could cause confusion and potential bugs if the translation function needs to be used within that scope.",
+      "suggestion": "Rename the timeout variable from `t` to `timeout` or `closeTimeout` to avoid shadowing the translation function."
+    },
+    {
+      "severity": "major",
+      "file": "apps/web/core/components/issues/issue-modal/base.tsx",
+      "line": 441,
+      "description": "The 'copy descendants' feature is significant new functionality that was not part of the original task to fix React hydration error #418. This represents scope creep and should be in a separate PR. The commit message and task description mention this was introduced in commit b763a3b37 but the fix should only address the hydration issue, not re-implement the feature.",
+      "suggestion": "Separate the hydration fix from the copy descendants feature into two PRs, or clarify if the copy descendants feature is intentionally being added/reimplemented as part of this task."
+    },
+    {
+      "severity": "minor",
+      "file": "apps/web/core/components/issues/issue-modal/base.tsx",
+      "line": 56,
+      "description": "The `copySnapshotRef` is declared but only assigned `null` at line 503. It's never read or used meaningfully in the code.",
+      "suggestion": "Remove the unused `copySnapshotRef` if it's not needed, or implement its intended usage."
+    },
+    {
+      "severity": "minor",
+      "file": "apps/web/core/components/issues/issue-modal/base.tsx",
+      "line": 190,
+      "description": "Non-null assertion on `queue.shift()!` could theoretically cause issues if the array is unexpectedly empty. The while condition checks length but TypeScript doesn't narrow this.",
+      "suggestion": "This is safe in practice due to the while condition, but consider using optional chaining or an explicit check for extra safety: `const parentId = queue.shift(); if (!parentId) break;`"
+    },
+    {
+      "severity": "minor",
+      "file": "apps/web/core/components/issues/issue-modal/form.tsx",
+      "line": 352,
+      "description": "The eslint-disable comment for react-hooks/exhaustive-deps suggests the dependency array may be incomplete. The comment was added but the dependencies weren't properly reviewed.",
+      "suggestion": "Review if all necessary dependencies are included, or document why certain dependencies are intentionally omitted."
+    }
+  ],
+  "positives": [
+    "The core hydration fix is correct - using React state instead of refs ensures consistent values between server and client renders",
+    "Good use of `void` keyword for fire-and-forget async calls to satisfy TypeScript strict mode",
+    "Improved type safety by replacing `any` with `unknown` in error handlers",
+    "The displayData and displayDescription logic is well-documented with comments explaining the hydration safety",
+    "Proper use of fieldset with disabled state and aria-busy for accessibility during copy operation",
+    "Progress bar implementation for copy descendants is well-structured with proper ARIA attributes",
+    "Translation strings added for both English and Portuguese locales"
+  ]
+}
