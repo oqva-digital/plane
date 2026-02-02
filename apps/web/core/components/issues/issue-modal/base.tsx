@@ -53,7 +53,6 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
   }
   // ref
   const issueTitleRef = useRef<HTMLInputElement>(null);
-  const copySnapshotRef = useRef<(Partial<TIssue> & { description_html?: string }) | null>(null);
   // states
   const [changesMade, setChangesMade] = useState<Partial<TIssue> | null>(null);
   const [createMore, setCreateMore] = useState(false);
@@ -110,11 +109,11 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
 
     // When modal closes: delay clearing state until after animation (content stays visible until modal is gone)
     if (!isOpen) {
-      const t = setTimeout(() => {
+      const closeTimeout = setTimeout(() => {
         setActiveProjectId(null);
         setChangesMade(null);
       }, 350);
-      return () => clearTimeout(t);
+      return () => clearTimeout(closeTimeout);
     }
 
     // if data is present, set active project to the project of the
@@ -187,7 +186,8 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
     const result: TIssue[] = [];
     const queue: string[] = [rootIssueId];
     while (queue.length > 0) {
-      const parentId = queue.shift()!;
+      const parentId = queue.shift();
+      if (!parentId) break;
       const response: TIssueSubIssues = await subIssues.fetchSubIssues(ws, projectId, parentId);
       const children: TIssue[] = Array.isArray(response.sub_issues)
         ? response.sub_issues
@@ -500,7 +500,6 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
           if (createMore && issueTitleRef) issueTitleRef?.current?.focus();
         } finally {
           setCopyProgress(null);
-          copySnapshotRef.current = null;
         }
       } else if (!data?.id) {
         response = await handleCreateIssue(payload, is_draft_issue);
