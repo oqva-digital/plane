@@ -273,8 +273,6 @@ export default {
   editor_is_not_ready_to_discard_changes: "Editor is not ready to discard changes",
   failed_to_move_issue_to_project: "Failed to move work item to project",
   create_more: "Create more",
-  copy_descendants: "Copy descendants",
-  copying: "Copying",
   add_to_project: "Add to project",
   discard: "Discard",
   duplicate_issue_found: "Duplicate work item found",
