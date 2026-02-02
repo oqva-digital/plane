@@ -65,6 +65,11 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
   const [uploadedAssetIds, setUploadedAssetIds] = useState<string[]>([]);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [copyProgress, setCopyProgress] = useState<{ done: number; total: number } | null>(null);
+
+  // State to preserve data/description when modal is closing (prevents content flash during close animation)
+  const [preservedData, setPreservedData] = useState<Partial<TIssue> | undefined>(undefined);
+  const [preservedDescription, setPreservedDescription] = useState<string | undefined>(undefined);
+
   // store hooks
   const { t } = useTranslation();
   const { workspaceSlug, projectId: routerProjectId, cycleId, moduleId, workItem } = useParams();
@@ -100,20 +105,20 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
     // fetching issue details
     if (isOpen) void fetchIssueDetail(data?.id ?? data?.sourceIssueId);
 
-    // Keep display data and description in ref when modal is open (so content does not disappear on close).
+    // Keep display data and description in state when modal is open (so content does not disappear on close).
     // Do not overwrite during copy-with-descendants so progress re-renders do not clear the snapshot.
     if (isOpen && data && copyProgress == null) {
-      lastDisplayDataRef.current = data;
-      lastDescriptionRef.current = description ?? data.description_html ?? lastDescriptionRef.current;
+      setPreservedData(data);
+      setPreservedDescription(description ?? data.description_html ?? preservedDescription);
     }
 
     // When modal closes: delay clearing state until after animation (content stays visible until modal is gone)
     if (!isOpen) {
-      const t = setTimeout(() => {
+      const closeTimeout = setTimeout(() => {
         setActiveProjectId(null);
         setChangesMade(null);
       }, 350);
-      return () => clearTimeout(t);
+      return () => clearTimeout(closeTimeout);
     }
 
     // if data is present, set active project to the project of the
@@ -133,20 +138,25 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
   }, [data?.project_id, data?.id, data?.sourceIssueId, projectId, isOpen, activeProjectId, copyProgress]);
 
   useEffect(() => {
-    // Do not overwrite snapshot ref during copy-with-descendants
+    // Do not overwrite snapshot state during copy-with-descendants
     if (copyProgress != null) return;
-    if (isOpen && description !== undefined) lastDescriptionRef.current = description;
+    if (isOpen && description !== undefined) setPreservedDescription(description);
   }, [isOpen, description, copyProgress]);
 
-  // Form data: use preserved data when closing or during copy (progress bar re-renders must not clear content)
-  const displayData =
-    copyProgress != null ? (lastDisplayDataRef.current ?? data) : isOpen && data ? data : lastDisplayDataRef.current;
-  const displayDescription =
-    copyProgress != null
-      ? (lastDescriptionRef.current ?? description ?? data?.description_html ?? displayData?.description_html)
-      : isOpen
-        ? (description ?? data?.description_html)
-        : (lastDescriptionRef.current ?? displayData?.description_html);
+  // Form data: use preserved data when closing (for smooth animation), but during copy-with-descendants
+  // progress updates, use preserved data to prevent content flash.
+  // Always use data prop when modal is open to avoid hydration mismatches.
+  // When modal is closed, use preserved data for close animation (but component typically returns null anyway)
+  const displayData = copyProgress != null
+    ? (preservedData ?? data)
+    : isOpen
+      ? data
+      : preservedData;
+  const displayDescription = copyProgress != null
+    ? (preservedDescription ?? description ?? data?.description_html)
+    : isOpen
+      ? (description ?? data?.description_html)
+      : preservedDescription;
 
   const addIssueToCycle = async (issue: TIssue, cycleId: string) => {
     if (!workspaceSlug || !issue.project_id) return;
@@ -181,7 +191,8 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
     const result: TIssue[] = [];
     const queue: string[] = [rootIssueId];
     while (queue.length > 0) {
-      const parentId = queue.shift()!;
+      const parentId = queue.shift();
+      if (!parentId) break;
       const response: TIssueSubIssues = await subIssues.fetchSubIssues(ws, projectId, parentId);
       const children: TIssue[] = Array.isArray(response.sub_issues)
         ? response.sub_issues
@@ -434,12 +445,11 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
 
       if (!data?.id && sourceIssueId && copyDescendants) {
         wasCopyingDescendants = true;
-        // Preserve description and data in ref before any setCopyProgress (progress bar re-renders must not clear content)
-        lastDescriptionRef.current =
-          payload.description_html ?? description ?? data?.description_html ?? lastDescriptionRef.current;
-        lastDisplayDataRef.current = data
-          ? { ...data, description_html: lastDescriptionRef.current }
-          : lastDisplayDataRef.current;
+        // Preserve description and data in state before any setCopyProgress (progress bar re-renders must not clear content)
+        const descToPreserve =
+          payload.description_html ?? description ?? data?.description_html ?? preservedDescription;
+        setPreservedDescription(descToPreserve);
+        setPreservedData(data ? { ...data, description_html: descToPreserve } : preservedData);
         setCopyProgress({ done: 0, total: 0 });
         try {
           const descendants = await fetchAllDescendants(workspaceSlug.toString(), payload.project_id, sourceIssueId);
@@ -495,7 +505,6 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
           if (createMore && issueTitleRef) issueTitleRef?.current?.focus();
         } finally {
           setCopyProgress(null);
-          copySnapshotRef.current = null;
         }
       } else if (!data?.id) {
         response = await handleCreateIssue(payload, is_draft_issue);
