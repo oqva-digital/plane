@@ -795,6 +795,8 @@ class IssueSerializer(DynamicBaseSerializer):
             "link_count",
             "is_draft",
             "archived_at",
+            "github_link",
+            "agent",
         ]
         read_only_fields = fields
 
@@ -845,6 +847,8 @@ class IssueListDetailSerializer(serializers.Serializer):
             "updated_by": instance.updated_by_id,
             "is_draft": instance.is_draft,
             "archived_at": instance.archived_at,
+            "github_link": getattr(instance, "github_link", None),
+            "agent": getattr(instance, "agent", None),
             # Computed fields
             "cycle_id": instance.cycle_id,
             "module_ids": self.get_module_ids(instance),

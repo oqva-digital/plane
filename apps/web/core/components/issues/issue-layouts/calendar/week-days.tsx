@@ -3,9 +3,10 @@ import { observer } from "mobx-react";
 import type { TGroupedIssues, TIssue, TIssueMap, TPaginationData, ICalendarDate, ICalendarWeek } from "@plane/types";
 import { cn, getOrderedDays, renderFormattedPayloadDate } from "@plane/utils";
 // hooks
+import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 import { useUserProfile } from "@/hooks/store/user";
 // types
-import type { IProjectEpicsFilter } from "@/plane-web/store/issue/epic";
+import type { IProjectEpicsFilter as _IProjectEpicsFilter } from "@/plane-web/store/issue/epic";
 import type { ICycleIssuesFilter } from "@/store/issue/cycle";
 import type { IModuleIssuesFilter } from "@/store/issue/module";
 import type { IProjectIssuesFilter } from "@/store/issue/project";
@@ -31,12 +32,13 @@ type Props = {
     sourceDate: string | undefined,
     destinationDate: string | undefined
   ) => Promise<void>;
-  addIssuesToView?: (issueIds: string[]) => Promise<any>;
+  addIssuesToView?: (issueIds: string[]) => Promise<void>;
   readOnly?: boolean;
   selectedDate: Date;
   setSelectedDate: (date: Date) => void;
   canEditProperties: (projectId: string | undefined) => boolean;
   isEpic?: boolean;
+  selectionHelpers?: TSelectionHelper;
 };
 
 export const CalendarWeekDays = observer(function CalendarWeekDays(props: Props) {
@@ -59,6 +61,7 @@ export const CalendarWeekDays = observer(function CalendarWeekDays(props: Props)
     setSelectedDate,
     canEditProperties,
     isEpic = false,
+    selectionHelpers,
   } = props;
   // hooks
   const { data } = useUserProfile();
@@ -109,6 +112,7 @@ export const CalendarWeekDays = observer(function CalendarWeekDays(props: Props)
             handleDragAndDrop={handleDragAndDrop}
             canEditProperties={canEditProperties}
             isEpic={isEpic}
+            selectionHelpers={selectionHelpers}
           />
         );
       })}

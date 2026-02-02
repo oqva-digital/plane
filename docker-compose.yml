@@ -105,6 +105,24 @@ services:
         DOCKER_BUILDKIT: 1
     restart: always
 
+  task-breakdown:
+    container_name: task-breakdown
+    build:
+      context: .
+      dockerfile: ./apps/breakdown/Dockerfile.breakdown
+      args:
+        DOCKER_BUILDKIT: 1
+    restart: always
+    env_file:
+      - .env
+    environment:
+      # Internal hostname when self-hosted. Override for Plane cloud.
+      PLANE_API_URL: ${PLANE_API_URL:-http://api:8000}
+      PLANE_API_KEY: ${PLANE_API_KEY}
+      TASK_MASTER_STORAGE_PATH: /data
+    volumes:
+      - breakdown-data:/data
+
   plane-db:
     container_name: plane-db
     image: postgres:15.7-alpine
@@ -159,8 +177,8 @@ services:
       dockerfile: Dockerfile.ce
     restart: always
     ports:
-      - ${LISTEN_HTTP_PORT}:80
-      - ${LISTEN_HTTPS_PORT}:443
+      - 127.0.0.1:${LISTEN_HTTP_PORT}:80
+      - 127.0.0.1:${LISTEN_HTTPS_PORT}:443
     environment:
       FILE_SIZE_LIMIT: ${FILE_SIZE_LIMIT:-5242880}
       BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
@@ -175,3 +193,4 @@ volumes:
   redisdata:
   uploads:
   rabbitmq_data:
+  breakdown-data:

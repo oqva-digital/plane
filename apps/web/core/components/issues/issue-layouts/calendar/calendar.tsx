@@ -21,10 +21,11 @@ import { renderFormattedPayloadDate, cn } from "@plane/utils";
 import { MONTHS_LIST } from "@/constants/calendar";
 // helpers
 // hooks
+import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 import { useIssues } from "@/hooks/store/use-issues";
 import useSize from "@/hooks/use-window-size";
 // store
-import type { IProjectEpicsFilter } from "@/plane-web/store/issue/epic";
+import type { IProjectEpicsFilter as _IProjectEpicsFilter } from "@/plane-web/store/issue/epic";
 import type { ICycleIssuesFilter } from "@/store/issue/cycle";
 import type { ICalendarStore } from "@/store/issue/issue_calendar_view.store";
 import type { IModuleIssuesFilter } from "@/store/issue/module";
@@ -56,7 +57,7 @@ type Props = {
     sourceDate: string | undefined,
     destinationDate: string | undefined
   ) => Promise<void>;
-  addIssuesToView?: (issueIds: string[]) => Promise<any>;
+  addIssuesToView?: (issueIds: string[]) => Promise<void>;
   readOnly?: boolean;
   updateFilters?: (
     projectId: string,
@@ -65,6 +66,7 @@ type Props = {
   ) => Promise<void>;
   canEditProperties: (projectId: string | undefined) => boolean;
   isEpic?: boolean;
+  selectionHelpers?: TSelectionHelper;
 };
 
 export const CalendarChart = observer(function CalendarChart(props: Props) {
@@ -86,6 +88,7 @@ export const CalendarChart = observer(function CalendarChart(props: Props) {
     canEditProperties,
     readOnly = false,
     isEpic = false,
+    selectionHelpers,
   } = props;
   // states
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -117,7 +120,7 @@ export const CalendarChart = observer(function CalendarChart(props: Props) {
         element,
       })
     );
-  }, [scrollableContainerRef?.current]);
+  }, []);
 
   if (!calendarPayload || !formattedDatePayload)
     return (
@@ -170,6 +173,7 @@ export const CalendarChart = observer(function CalendarChart(props: Props) {
                         readOnly={readOnly}
                         canEditProperties={canEditProperties}
                         isEpic={isEpic}
+                        selectionHelpers={selectionHelpers}
                       />
                     ))}
                 </div>
@@ -194,6 +198,7 @@ export const CalendarChart = observer(function CalendarChart(props: Props) {
                   readOnly={readOnly}
                   canEditProperties={canEditProperties}
                   isEpic={isEpic}
+                  selectionHelpers={selectionHelpers}
                 />
               )}
             </div>
@@ -221,6 +226,8 @@ export const CalendarChart = observer(function CalendarChart(props: Props) {
                 isDragDisabled
                 isMobileView
                 isEpic={isEpic}
+                selectionHelpers={selectionHelpers}
+                groupId={formattedDatePayload}
               />
             </div>
           </div>
@@ -249,6 +256,8 @@ export const CalendarChart = observer(function CalendarChart(props: Props) {
             isDragDisabled
             isMobileView
             isEpic={isEpic}
+            selectionHelpers={selectionHelpers}
+            groupId={formattedDatePayload}
           />
         </div>
       </div>

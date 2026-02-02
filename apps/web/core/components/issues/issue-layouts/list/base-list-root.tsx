@@ -35,7 +35,7 @@ type ListStoreType =
 
 interface IBaseListRoot {
   QuickActions: FC<IQuickActionProps>;
-  addIssuesToView?: (issueIds: string[]) => Promise<any>;
+  addIssuesToView?: (issueIds: string[]) => Promise<void>;
   canEditPropertiesBasedOnProject?: (projectId: string) => boolean;
   viewId?: string | undefined;
   isCompletedCycle?: boolean;
@@ -81,7 +81,7 @@ export const BaseListRoot = observer(function BaseListRoot(props: IBaseListRoot)
     issuesFilter?.issueFilters?.kanbanFilters || ({ group_by: [], sub_group_by: [] } as TIssueKanbanFilters);
 
   useEffect(() => {
-    fetchIssues("init-loader", { canGroup: true, perPageCount: group_by ? 50 : 100 }, viewId);
+    void fetchIssues("init-loader", { canGroup: true, perPageCount: group_by ? 50 : 100 }, viewId);
   }, [fetchIssues, storeType, group_by, viewId]);
 
   const groupedIssueIds = issues?.groupedIssueIds as TGroupedIssues | undefined;
@@ -105,7 +105,7 @@ export const BaseListRoot = observer(function BaseListRoot(props: IBaseListRoot)
   const handleOnDrop = useGroupIssuesDragNDrop(storeType, orderBy, group_by);
 
   const renderQuickActions: TRenderQuickActions = useCallback(
-    ({ issue, parentRef }) => (
+    ({ issue, parentRef, selectionHelpers, groupId }) => (
       <QuickActions
         parentRef={parentRef}
         issue={issue}
@@ -115,6 +115,8 @@ export const BaseListRoot = observer(function BaseListRoot(props: IBaseListRoot)
         handleArchive={async () => archiveIssue && archiveIssue(issue.project_id, issue.id)}
         handleRestore={async () => restoreIssue && restoreIssue(issue.project_id, issue.id)}
         readOnly={!canEditProperties(issue.project_id ?? undefined) || isCompletedCycle}
+        selectionHelpers={selectionHelpers}
+        groupId={groupId}
       />
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,7 +125,7 @@ export const BaseListRoot = observer(function BaseListRoot(props: IBaseListRoot)
 
   const loadMoreIssues = useCallback(
     (groupId?: string) => {
-      fetchNextIssues(groupId);
+      void fetchNextIssues(groupId);
     },
     [fetchNextIssues]
   );
@@ -138,7 +140,7 @@ export const BaseListRoot = observer(function BaseListRoot(props: IBaseListRoot)
         } else {
           collapsedGroups.push(value);
         }
-        updateFilters(projectId?.toString() ?? "", EIssueFilterType.KANBAN_FILTERS, {
+        void updateFilters(projectId?.toString() ?? "", EIssueFilterType.KANBAN_FILTERS, {
           group_by: collapsedGroups,
         } as TIssueKanbanFilters);
       }

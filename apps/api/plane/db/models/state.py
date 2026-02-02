@@ -26,14 +26,14 @@ DEFAULT_STATES = [
         "default": True,
     },
     {
-        "name": "Todo",
-        "color": "#60646C",
-        "sequence": 25000,
-        "group": StateGroup.UNSTARTED.value,
+        "name": "Blocked",
+        "color": "#9900EF",
+        "sequence": 20000,
+        "group": StateGroup.BACKLOG.value,
     },
     {
         "name": "In Progress",
-        "color": "#F59E0B",
+        "color": "#ABB8C3",
         "sequence": 35000,
         "group": StateGroup.STARTED.value,
     },
@@ -54,6 +54,37 @@ DEFAULT_STATES = [
         "color": "#4E5355",
         "sequence": 65000,
         "group": StateGroup.TRIAGE.value,
+    },
+    # Review workflow (Unstarted → Started → Completed)
+    {
+        "name": "Ready for Dev",
+        "color": "#0693E3",
+        "sequence": 75000,
+        "group": StateGroup.UNSTARTED.value,
+    },
+    {
+        "name": "Needs Input",
+        "color": "#0693E3",
+        "sequence": 85000,
+        "group": StateGroup.UNSTARTED.value,
+    },
+    {
+        "name": "In Review",
+        "color": "#8ED1FC",
+        "sequence": 95000,
+        "group": StateGroup.STARTED.value,
+    },
+    {
+        "name": "Needs Revision",
+        "color": "#FCB900",
+        "sequence": 105000,
+        "group": StateGroup.STARTED.value,
+    },
+    {
+        "name": "Review Approved",
+        "color": "#46A758",
+        "sequence": 115000,
+        "group": StateGroup.COMPLETED.value,
     },
 ]
 

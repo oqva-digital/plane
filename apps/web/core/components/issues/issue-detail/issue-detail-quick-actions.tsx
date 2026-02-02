@@ -18,6 +18,7 @@ import { usePlatformOS } from "@/hooks/use-platform-os";
 // local imports
 import { WorkItemDetailQuickActions } from "../issue-layouts/quick-action-dropdowns";
 import { IssueSubscription } from "./subscription";
+import { BreakdownButton } from "./breakdown-button";
 
 type Props = {
   workspaceSlug: string;
@@ -133,27 +134,45 @@ export const IssueDetailQuickActions = observer(function IssueDetailQuickActions
     }
   };
 
+  // NOTE: This handler is currently mocked and should be replaced with
+  // a real Task Master integration once the backend API is available.
+
   return (
     <>
-      <div className="flex items-center justify-end flex-shrink-0">
-        <div className="flex flex-wrap items-center gap-2">
-          {currentUser && !issue?.archived_at && (
-            <IssueSubscription workspaceSlug={workspaceSlug} projectId={projectId} issueId={issueId} />
-          )}
-          <div className="flex flex-wrap items-center gap-2 text-tertiary">
-            <Tooltip tooltipContent={t("common.actions.copy_link")} isMobile={isMobile}>
-              <IconButton variant="secondary" size="lg" onClick={handleCopyText} icon={CopyLinkIcon} />
-            </Tooltip>
-            <WorkItemDetailQuickActions
-              parentRef={parentRef}
-              issue={issue}
-              handleDelete={handleDeleteIssue}
-              handleArchive={handleArchiveIssue}
-              handleRestore={handleRestore}
-            />
+      <>
+        <div className="flex items-center justify-end flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
+            {currentUser && !issue?.archived_at && (
+              <IssueSubscription workspaceSlug={workspaceSlug} projectId={projectId} issueId={issueId} />
+            )}
+            <div className="flex flex-wrap items-center gap-2 text-tertiary">
+              <BreakdownButton
+                workspaceSlug={workspaceSlug}
+                projectId={projectId}
+                issueId={issueId}
+                isMobile={isMobile}
+              />
+              <Tooltip tooltipContent={t("common.actions.copy_link")} isMobile={isMobile}>
+                <IconButton
+                  variant="secondary"
+                  size="lg"
+                  onClick={() => {
+                    void handleCopyText();
+                  }}
+                  icon={CopyLinkIcon}
+                />
+              </Tooltip>
+              <WorkItemDetailQuickActions
+                parentRef={parentRef}
+                issue={issue}
+                handleDelete={handleDeleteIssue}
+                handleArchive={handleArchiveIssue}
+                handleRestore={handleRestore}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      </>
     </>
   );
 });

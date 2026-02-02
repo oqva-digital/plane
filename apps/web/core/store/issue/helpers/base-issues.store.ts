@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-floating-promises -- store fire-and-forget fetchParentStats */
+/* eslint-disable @typescript-eslint/no-unused-expressions -- short-circuit conditional side effects */
+/* eslint-disable @typescript-eslint/no-for-in-array -- intentional iteration over grouped keys */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return -- bulkDelete response typed by service */
 import { isEqual, concat, get, indexOf, isEmpty, orderBy, pull, set, uniq, update, clone } from "lodash-es";
 import { action, computed, makeObservable, observable, runInAction } from "mobx";
 import { computedFn } from "mobx-utils";
@@ -283,11 +287,11 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
     const displayFilters = this.issueFilterStore?.issueFilters?.displayFilters;
     if (!displayFilters || !displayFilters?.layout) return;
 
-    const layout = displayFilters?.layout;
+    const layout = displayFilters?.layout as EIssueLayoutTypes | undefined;
 
     return layout === EIssueLayoutTypes.CALENDAR
       ? "target_date"
-      : [EIssueLayoutTypes.LIST, EIssueLayoutTypes.KANBAN]?.includes(layout)
+      : [EIssueLayoutTypes.LIST, EIssueLayoutTypes.KANBAN]?.includes(layout as EIssueLayoutTypes)
         ? displayFilters?.group_by
         : undefined;
   }
@@ -521,7 +525,7 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
     workspaceSlug: string,
     projectId: string,
     data: Partial<TIssue>,
-    id?: string,
+    _id?: string,
     shouldUpdateList = true
   ) {
     // perform an API call
@@ -530,8 +534,9 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
     // add Issue to Store
     this.addIssue(response, shouldUpdateList);
 
-    // If shouldUpdateList is true, call fetchParentStats
-    shouldUpdateList && (await this.fetchParentStats(workspaceSlug, projectId));
+    if (shouldUpdateList) {
+      void this.fetchParentStats(workspaceSlug, projectId);
+    }
 
     return response;
   }
@@ -662,24 +667,24 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
   }
 
   /**
-   * This is a method to delete issues in bulk
+   * This is a method to delete issues in bulk.
+   * Uses optimistic update: removes from store first, then calls API; on failure the caller may refetch.
    * @param workspaceSlug
    * @param projectId
    * @param issueIds
    * @returns
    */
   async removeBulkIssues(workspaceSlug: string, projectId: string, issueIds: string[]) {
-    // Make API call to bulk delete issues
-    const response = await this.issueService.bulkDeleteIssues(workspaceSlug, projectId, { issue_ids: issueIds });
-    // call fetch parent stats
-    this.fetchParentStats(workspaceSlug, projectId);
-    // Remove issues from the store
+    if (issueIds.length === 0) return;
+    // Optimistic update: remove from store first
     runInAction(() => {
       issueIds.forEach((issueId) => {
         this.removeIssueFromList(issueId);
         this.rootIssueStore.issues.removeIssue(issueId);
       });
     });
+    const response = await this.issueService.bulkDeleteIssues(workspaceSlug, projectId, { issue_ids: issueIds });
+    void this.fetchParentStats(workspaceSlug, projectId);
     return response;
   }
 
@@ -754,14 +759,14 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
     if (!projectId) return;
     const issueDatesBeforeChange: { id: string; start_date?: string; target_date?: string }[] = [];
     try {
-      const getIssueById = this.rootIssueStore.issues.getIssueById;
+      const issuesStore = this.rootIssueStore.issues;
       runInAction(() => {
         for (const update of updates) {
           const dates: Partial<TIssue> = {};
           if (update.start_date) dates.start_date = update.start_date;
           if (update.target_date) dates.target_date = update.target_date;
 
-          const currIssue = getIssueById(update.id);
+          const currIssue = issuesStore.getIssueById(update.id);
 
           if (currIssue) {
             issueDatesBeforeChange.push({
@@ -848,11 +853,10 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
     await this.issueService.removeIssueFromCycle(workspaceSlug, projectId, cycleId, issueId);
 
     // if cycle Id is the current Cycle Id then call fetch parent stats
-    if (this.cycleId === cycleId) this.fetchParentStats(workspaceSlug, projectId, cycleId);
+    if (this.cycleId === cycleId) void this.fetchParentStats(workspaceSlug, projectId, cycleId);
 
     runInAction(() => {
-      // If cycle Id is the current cycle Id, then, remove issue from list of issueIds
-      this.cycleId === cycleId && this.removeIssueFromList(issueId);
+      if (this.cycleId === cycleId) this.removeIssueFromList(issueId);
     });
 
     // update Issue cycle Id to null by calling current store's update Issue, without making an API call

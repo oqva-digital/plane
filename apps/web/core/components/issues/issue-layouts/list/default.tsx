@@ -17,13 +17,12 @@ import type {
   TIssueKanbanFilters,
 } from "@plane/types";
 // components
-import { MultipleSelectGroup } from "@/components/core/multiple-select";
+import { MultipleSelectGroup, SelectionClearOnOutsideClick } from "@/components/core/multiple-select";
 // hooks
+import { useMultipleSelectStore } from "@/hooks/store/use-multiple-select-store";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 // plane web components
 import { IssueBulkOperationsRoot } from "@/plane-web/components/issues/bulk-operations";
-// plane web hooks
-import { useBulkOperationStatus } from "@/plane-web/hooks/use-bulk-operation-status";
 // utils
 import type { GroupDropLocation } from "../utils";
 import { getGroupByColumns, isWorkspaceLevel, isSubGrouped } from "../utils";
@@ -76,10 +75,10 @@ export const List = observer(function List(props: IList) {
   } = props;
 
   const storeType = useIssueStoreType();
-  // plane web hooks
-  const isBulkOperationsEnabled = useBulkOperationStatus();
+  const { selectionModeEnabled } = useMultipleSelectStore();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const selectionAreaRef = useRef<HTMLDivElement | null>(null);
 
   const groups = getGroupByColumns({
     groupBy: group_by as GroupByColumnTypes,
@@ -125,49 +124,49 @@ export const List = observer(function List(props: IList) {
   return (
     <div className="relative size-full flex flex-col">
       {groups && (
-        <MultipleSelectGroup
-          containerRef={containerRef}
-          entities={entities}
-          disabled={!isBulkOperationsEnabled || isEpic}
-        >
+        <MultipleSelectGroup containerRef={containerRef} entities={entities} disabled={!selectionModeEnabled || isEpic}>
           {(helpers) => (
-            <>
-              <div
-                ref={containerRef}
-                className="size-full vertical-scrollbar scrollbar-lg relative overflow-auto bg-surface-1"
-              >
-                {groups.map((group: IGroupByColumn) => (
-                  <ListGroup
-                    key={group.id}
-                    groupIssueIds={groupedIssueIds?.[group.id]}
-                    issuesMap={issuesMap}
-                    group_by={group_by}
-                    group={group}
-                    updateIssue={updateIssue}
-                    quickActions={quickActions}
-                    orderBy={orderBy}
-                    getGroupIndex={getGroupIndex}
-                    handleOnDrop={handleOnDrop}
-                    displayProperties={displayProperties}
-                    enableIssueQuickAdd={enableIssueQuickAdd}
-                    showEmptyGroup={showEmptyGroup}
-                    canEditProperties={canEditProperties}
-                    quickAddCallback={quickAddCallback}
-                    disableIssueCreation={disableIssueCreation}
-                    addIssuesToView={addIssuesToView}
-                    isCompletedCycle={isCompletedCycle}
-                    loadMoreIssues={loadMoreIssues}
-                    containerRef={containerRef}
-                    selectionHelpers={helpers}
-                    handleCollapsedGroups={handleCollapsedGroups}
-                    collapsedGroups={collapsedGroups}
-                    isEpic={isEpic}
-                  />
-                ))}
+            <SelectionClearOnOutsideClick
+              containerRef={selectionAreaRef}
+              onClearSelection={helpers.handleClearSelection}
+            >
+              <div ref={selectionAreaRef} className="relative flex size-full flex-col overflow-hidden">
+                <IssueBulkOperationsRoot selectionHelpers={helpers} />
+                <div
+                  ref={containerRef}
+                  className="min-h-0 flex-1 vertical-scrollbar scrollbar-lg overflow-auto bg-surface-1"
+                >
+                  {groups.map((group: IGroupByColumn) => (
+                    <ListGroup
+                      key={group.id}
+                      groupIssueIds={groupedIssueIds?.[group.id]}
+                      issuesMap={issuesMap}
+                      group_by={group_by}
+                      group={group}
+                      updateIssue={updateIssue}
+                      quickActions={quickActions}
+                      orderBy={orderBy}
+                      getGroupIndex={getGroupIndex}
+                      handleOnDrop={handleOnDrop}
+                      displayProperties={displayProperties}
+                      enableIssueQuickAdd={enableIssueQuickAdd}
+                      showEmptyGroup={showEmptyGroup}
+                      canEditProperties={canEditProperties}
+                      quickAddCallback={quickAddCallback}
+                      disableIssueCreation={disableIssueCreation}
+                      addIssuesToView={addIssuesToView}
+                      isCompletedCycle={isCompletedCycle}
+                      loadMoreIssues={loadMoreIssues}
+                      containerRef={containerRef}
+                      selectionHelpers={helpers}
+                      handleCollapsedGroups={handleCollapsedGroups}
+                      collapsedGroups={collapsedGroups}
+                      isEpic={isEpic}
+                    />
+                  ))}
+                </div>
               </div>
-
-              <IssueBulkOperationsRoot selectionHelpers={helpers} />
-            </>
+            </SelectionClearOnOutsideClick>
           )}
         </MultipleSelectGroup>
       )}

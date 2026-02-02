@@ -1,5 +1,6 @@
 import type { TPlacement } from "@plane/propel/utils/placement";
 import type { TIssue } from "@plane/types";
+import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 
 export interface IQuickActionProps {
   parentRef: React.RefObject<HTMLElement>;
@@ -14,18 +15,16 @@ export interface IQuickActionProps {
   portalElement?: HTMLDivElement | null;
   readOnly?: boolean;
   placements?: TPlacement;
+  selectionHelpers?: TSelectionHelper;
+  groupId?: string;
 }
 
-export type TRenderQuickActions = ({
-  issue,
-  parentRef,
-  customActionButton,
-  placement,
-  portalElement,
-}: {
+export type TRenderQuickActions = (props: {
   issue: TIssue;
   parentRef: React.RefObject<HTMLElement>;
   customActionButton?: React.ReactElement;
   placement?: TPlacement;
   portalElement?: HTMLDivElement | null;
+  selectionHelpers?: TSelectionHelper;
+  groupId?: string;
 }) => React.ReactNode;

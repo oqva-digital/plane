@@ -4,7 +4,11 @@ import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 // plane imports
 import { ALL_ISSUES, EIssueFilterType, EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
-import type { EIssuesStoreType, IIssueDisplayFilterOptions } from "@plane/types";
+import type {
+  EIssuesStoreType,
+  IIssueDisplayFilterOptions,
+  IIssueDisplayProperties as _IIssueDisplayProperties,
+} from "@plane/types";
 import { EIssueLayoutTypes } from "@plane/types";
 // hooks
 import { useIssues } from "@/hooks/store/use-issues";
@@ -61,7 +65,7 @@ export const BaseSpreadsheetRoot = observer(function BaseSpreadsheetRoot(props: 
   );
 
   useEffect(() => {
-    fetchIssues("init-loader", { canGroup: false, perPageCount: 100 }, viewId);
+    void fetchIssues("init-loader", { canGroup: false, perPageCount: 100 }, viewId);
   }, [fetchIssues, storeType, viewId]);
 
   const canEditProperties = useCallback(
@@ -79,7 +83,7 @@ export const BaseSpreadsheetRoot = observer(function BaseSpreadsheetRoot(props: 
 
   const handleDisplayFiltersUpdate = useCallback(
     (updatedDisplayFilter: Partial<IIssueDisplayFilterOptions>) => {
-      updateFilters(projectId?.toString() ?? "", EIssueFilterType.DISPLAY_FILTERS, {
+      void updateFilters(projectId?.toString() ?? "", EIssueFilterType.DISPLAY_FILTERS, {
         ...updatedDisplayFilter,
       });
     },
@@ -87,7 +91,7 @@ export const BaseSpreadsheetRoot = observer(function BaseSpreadsheetRoot(props: 
   );
 
   const renderQuickActions: TRenderQuickActions = useCallback(
-    ({ issue, parentRef, customActionButton, placement, portalElement }) => (
+    ({ issue, parentRef, customActionButton, placement, portalElement, selectionHelpers, groupId }) => (
       <QuickActions
         parentRef={parentRef}
         customActionButton={customActionButton}
@@ -99,10 +103,21 @@ export const BaseSpreadsheetRoot = observer(function BaseSpreadsheetRoot(props: 
         handleRestore={async () => restoreIssue && restoreIssue(issue.project_id, issue.id)}
         portalElement={portalElement}
         readOnly={!canEditProperties(issue.project_id ?? undefined) || isCompletedCycle}
-        placements={placement}
+        placements={placement} // eslint-disable-line @typescript-eslint/no-unsafe-assignment -- placement from args
+        selectionHelpers={selectionHelpers}
+        groupId={groupId}
       />
     ),
-    [isCompletedCycle, canEditProperties, removeIssue, updateIssue, removeIssueFromView, archiveIssue, restoreIssue]
+    [
+      QuickActions,
+      isCompletedCycle,
+      canEditProperties,
+      removeIssue,
+      updateIssue,
+      removeIssueFromView,
+      archiveIssue,
+      restoreIssue,
+    ]
   );
 
   if (!Array.isArray(issueIds)) return null;
@@ -121,7 +136,7 @@ export const BaseSpreadsheetRoot = observer(function BaseSpreadsheetRoot(props: 
         enableQuickCreateIssue={enableQuickAdd}
         disableIssueCreation={!enableIssueCreation || !isEditingAllowed || isCompletedCycle}
         canLoadMoreIssues={!!nextPageResults}
-        loadMoreIssues={fetchNextIssues}
+        loadMoreIssues={(groupId?: string) => void fetchNextIssues(groupId)}
         isEpic={isEpic}
       />
     </IssueLayoutHOC>

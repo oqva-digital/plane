@@ -25,10 +25,11 @@ export const ControlLink = React.forwardRef(function ControlLink(
     }
   };
 
-  // if disabled but still has a ref or a className then it has to be rendered without a href
+  // if disabled but still has a ref or a className then render with inert href for a11y
   if (disabled && (ref || className))
     return (
-      <a ref={ref} className={className}>
+      // eslint-disable-next-line jsx-a11y/anchor-is-valid -- disabled link rendered as placeholder
+      <a ref={ref} className={className} href="#" aria-disabled="true" onClick={(e) => e.preventDefault()}>
         {children}
       </a>
     );
@@ -41,10 +42,10 @@ export const ControlLink = React.forwardRef(function ControlLink(
       href={href}
       target={target}
       onClick={handleOnClick}
-      {...rest}
       ref={ref}
       className={className}
       draggable={draggable}
+      {...rest}
     >
       {children}
     </a>

@@ -16,6 +16,7 @@ import type {
 import { Row } from "@plane/ui";
 // hooks
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
+import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 // plane web imports
 import { useWorkFlowFDragNDrop } from "@/plane-web/components/workflow";
 // local imports
@@ -219,6 +220,8 @@ const SubGroupSwimlane = observer(function SubGroupSwimlane(props: ISubGroupSwim
                     isDropDisabled={_list.isDropDisabled}
                     dropErrorMessage={_list.dropErrorMessage}
                     isEpic={isEpic}
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- selectionHelpers from store
+                    selectionHelpers={_selectionHelpers}
                   />
                 </div>
               )}
@@ -255,6 +258,7 @@ export interface IKanBanSwimLanes {
   showEmptyGroup: boolean;
   sub_group_by: TIssueGroupByOptions | undefined;
   updateIssue: ((projectId: string | null, issueId: string, data: Partial<TIssue>) => Promise<void>) | undefined;
+  selectionHelpers?: TSelectionHelper;
 }
 
 export const KanBanSwimLanes = observer(function KanBanSwimLanes(props: IKanBanSwimLanes) {
@@ -280,6 +284,7 @@ export const KanBanSwimLanes = observer(function KanBanSwimLanes(props: IKanBanS
     quickAddCallback,
     scrollableContainerRef,
     isEpic = false,
+    selectionHelpers: _selectionHelpers,
   } = props;
   // store hooks
   const storeType = useIssueStoreType();

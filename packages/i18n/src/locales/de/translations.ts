@@ -696,6 +696,7 @@ export default {
     epics: "Epiks",
     work_item: "Arbeitselement",
     work_items: "Arbeitselemente",
+    selected: "ausgewählt",
     sub_work_item: "Untergeordnetes Arbeitselement",
     add: "Hinzufügen",
     warning: "Warnung",
@@ -813,12 +814,14 @@ export default {
     },
     actions: {
       edit: "Bearbeiten",
+      select: "Auswählen",
       make_a_copy: "Kopie erstellen",
       open_in_new_tab: "In neuem Tab öffnen",
       copy_link: "Link kopieren",
       archive: "Archivieren",
       restore: "Wiederherstellen",
       delete: "Löschen",
+      delete_all: "Alle löschen",
       remove_relation: "Beziehung entfernen",
       subscribe: "Abonnieren",
       unsubscribe: "Abo beenden",
@@ -937,6 +940,10 @@ export default {
       label: "{entity} löschen",
       success: "{entity} erfolgreich gelöscht",
       failed: "{entity} konnte nicht gelöscht werden",
+      confirm_bulk:
+        "Möchten Sie wirklich {count} Arbeitselement(e) löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      bulk_success: "{count} Arbeitselement(e) erfolgreich gelöscht.",
+      error: "Fehler beim Löschen von {entity}.",
     },
     update: {
       failed: "{entity} konnte nicht aktualisiert werden",

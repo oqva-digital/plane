@@ -1,6 +1,4 @@
-import type { FC } from "react";
-import React from "react";
-import { Paperclip } from "lucide-react";
+import { FileText, Paperclip } from "lucide-react";
 import { useTranslation } from "@plane/i18n";
 import { LinkIcon, ViewsIcon, RelationPropertyIcon } from "@plane/propel/icons";
 // plane imports
@@ -9,7 +7,8 @@ import type { TIssueServiceType, TWorkItemWidgets } from "@plane/types";
 import { WorkItemAdditionalWidgetActionButtons } from "@/plane-web/components/issues/issue-detail-widgets/action-buttons";
 // local imports
 import { IssueAttachmentActionButton } from "./attachments";
-import { IssueLinksActionButton } from "./links";
+import { BreakdownActionButton } from "./breakdown";
+import { IssueAddPageActionButton, IssueLinksActionButton } from "./links";
 import { RelationActionButton } from "./relations";
 import { SubIssuesActionButton } from "./sub-issues";
 import { IssueDetailWidgetButton } from "./widget-button";
@@ -44,6 +43,14 @@ export function IssueDetailWidgetActionButtons(props: Props) {
           issueServiceType={issueServiceType}
         />
       )}
+      {/* AI breakdown (mocked) - uses same modal/flow as the breakdown button in the header */}
+      <BreakdownActionButton
+        workspaceSlug={workspaceSlug}
+        projectId={projectId}
+        issueId={issueId}
+        disabled={disabled}
+        issueServiceType={issueServiceType}
+      />
       {!hideWidgets?.includes("relations") && (
         <RelationActionButton
           issueId={issueId}
@@ -59,17 +66,30 @@ export function IssueDetailWidgetActionButtons(props: Props) {
         />
       )}
       {!hideWidgets?.includes("links") && (
-        <IssueLinksActionButton
-          customButton={
-            <IssueDetailWidgetButton
-              title={t("issue.add.link")}
-              icon={<LinkIcon className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={2} />}
-              disabled={disabled}
-            />
-          }
-          disabled={disabled}
-          issueServiceType={issueServiceType}
-        />
+        <>
+          <IssueLinksActionButton
+            customButton={
+              <IssueDetailWidgetButton
+                title={t("issue.add.link")}
+                icon={<LinkIcon className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={2} />}
+                disabled={disabled}
+              />
+            }
+            disabled={disabled}
+            issueServiceType={issueServiceType}
+          />
+          <IssueAddPageActionButton
+            customButton={
+              <IssueDetailWidgetButton
+                title="Add page"
+                icon={<FileText className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={2} />}
+                disabled={disabled}
+              />
+            }
+            disabled={disabled}
+            issueServiceType={issueServiceType}
+          />
+        </>
       )}
       {!hideWidgets?.includes("attachments") && (
         <IssueAttachmentActionButton

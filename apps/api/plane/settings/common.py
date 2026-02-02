@@ -462,3 +462,7 @@ if ENABLE_DRF_SPECTACULAR:
 # MongoDB Settings
 MONGO_DB_URL = os.environ.get("MONGO_DB_URL", False)
 MONGO_DB_DATABASE = os.environ.get("MONGO_DB_DATABASE", False)
+
+# Default project member: user ID (UUID) to add to every new project (e.g. api@oqva.digital).
+# Leave empty to disable. The user must be a member of the workspace.
+DEFAULT_PROJECT_MEMBER_ID = os.environ.get("DEFAULT_PROJECT_MEMBER_ID", "").strip() or None

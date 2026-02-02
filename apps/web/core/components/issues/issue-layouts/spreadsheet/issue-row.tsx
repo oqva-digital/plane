@@ -12,7 +12,7 @@ import { Tooltip } from "@plane/propel/tooltip";
 import type { IIssueDisplayProperties, TIssue } from "@plane/types";
 import { EIssueServiceType } from "@plane/types";
 // ui
-import { ControlLink, Row } from "@plane/ui";
+import { Badge, ControlLink, Row } from "@plane/ui";
 import { cn, generateWorkItemLink } from "@plane/utils";
 // components
 import { MultipleSelectEntityAction } from "@/components/core/multiple-select";
@@ -22,6 +22,7 @@ import RenderIfVisible from "@/components/core/render-if-visible-HOC";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useIssues } from "@/hooks/store/use-issues";
 import { useProject } from "@/hooks/store/use-project";
+import { useLongPress } from "@/hooks/use-long-press";
 import useIssuePeekOverviewRedirection from "@/hooks/use-issue-peek-overview-redirection";
 import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 import { usePlatformOS } from "@/hooks/use-platform-os";
@@ -92,9 +93,10 @@ export const SpreadsheetIssueRow = observer(function SpreadsheetIssueRow(props: 
             style={{ height: "calc(2.75rem - 1px)" }}
           />
         }
-        classNames={cn("bg-surface-1 transition-[background-color]", {
+        classNames={cn("bg-surface-1 transition-[background-color] border border-transparent", {
           "group selected-issue-row": isIssueSelected,
-          "border-[0.5px] border-strong-1": isIssueActive,
+          "border-2 border-accent-primary": isIssueSelected,
+          "border-[0.5px] border-strong-1": isIssueActive && !isIssueSelected,
         })}
         verticalOffset={100}
         shouldRecordHeights={false}
@@ -203,6 +205,10 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
 
   const subIssueIndentation = `${spacingLeft}px`;
 
+  // NOTE: This flag is currently mocked. Once the backend is ready,
+  // replace this with the real field that indicates AI-generated tasks.
+  const isAIGeneratedFromPRD = !!(issueDetail as TIssue & { ai_generated_from_prd?: boolean })?.ai_generated_from_prd;
+
   useOutsideClickDetector(menuActionRef, () => setIsMenuActive(false));
 
   const customActionButton = (
@@ -212,10 +218,43 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
         isMenuActive ? "bg-layer-1 text-primary" : "text-secondary"
       }`}
       onClick={() => setIsMenuActive(!isMenuActive)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setIsMenuActive(!isMenuActive);
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       <MoreHorizontal className="h-3.5 w-3.5" />
     </div>
   );
+
+  const handleLongPressSelect = () => {
+    if (
+      !issueDetail ||
+      !canEditProperties(issueDetail.project_id ?? undefined) ||
+      !projectId ||
+      issueDetail.project_id !== projectId
+    )
+      return;
+    selectionHelpers.enterSelectionMode();
+    selectionHelpers.handleEntitySelection(
+      { entityID: issueDetail.id, groupID: SPREADSHEET_SELECT_GROUP },
+      false,
+      "force-add"
+    );
+  };
+
+  const {
+    longPressHandledRef,
+    onPointerDown: onLongPressPointerDown,
+    onPointerUp: onLongPressPointerUp,
+    onPointerCancel: onLongPressPointerCancel,
+    onPointerLeave: onLongPressPointerLeave,
+  } = useLongPress(handleLongPressSelect, { delayMs: 1000 });
+
   if (!issueDetail) return null;
 
   const handleToggleExpand = (e: MouseEvent<HTMLButtonElement>) => {
@@ -225,8 +264,9 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
       handleIssuePeekOverview(issueDetail);
     } else {
       setExpanded((prevState) => {
-        if (!prevState && workspaceSlug && issueDetail && issueDetail.project_id)
-          subIssuesStore.fetchSubIssues(workspaceSlug.toString(), issueDetail.project_id, issueDetail.id);
+        if (!prevState && workspaceSlug && issueDetail && issueDetail.project_id) {
+          void subIssuesStore.fetchSubIssues(workspaceSlug.toString(), issueDetail.project_id, issueDetail.id);
+        }
         return !prevState;
       });
     }
@@ -248,6 +288,17 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
     isEpic,
   });
 
+  const handleRowClick = (e: React.MouseEvent) => {
+    if (longPressHandledRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      longPressHandledRef.current = false;
+      return;
+    }
+    if ((e.target as Element).closest?.("[data-issue-select-checkbox-area]")) return;
+    handleIssuePeekOverview(issueDetail);
+  };
+
   return (
     <>
       {/* Single sticky column containing both identifier and workitem */}
@@ -259,7 +310,11 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
       >
         <ControlLink
           href={workItemLink}
-          onClick={() => handleIssuePeekOverview(issueDetail)}
+          onClick={handleRowClick}
+          onPointerDown={onLongPressPointerDown}
+          onPointerUp={onLongPressPointerUp}
+          onPointerCancel={onLongPressPointerCancel}
+          onPointerLeave={onLongPressPointerLeave}
           className="outline-none"
           disabled={!!issueDetail?.tempId}
         >
@@ -274,6 +329,48 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
               }
             )}
           >
+            {/* select checkbox - leftmost */}
+            {projectId && canSelectIssues && (
+              <Tooltip
+                tooltipContent={
+                  <>
+                    Only work items within the current
+                    <br />
+                    project can be selected.
+                  </>
+                }
+                disabled={issueDetail.project_id === projectId}
+              >
+                <div
+                  className={cn(
+                    "flex-shrink-0 grid place-items-center w-5 mr-2",
+                    "opacity-0 pointer-events-none group-hover/list-block:opacity-100 group-hover/list-block:pointer-events-auto transition-opacity",
+                    { "opacity-100 pointer-events-auto": isIssueSelected }
+                  )}
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
+                  data-issue-select-checkbox-area
+                >
+                  <MultipleSelectEntityAction
+                    groupId={SPREADSHEET_SELECT_GROUP}
+                    id={issueDetail.id}
+                    selectionHelpers={selectionHelpers}
+                    disabled={issueDetail.project_id !== projectId}
+                  />
+                </div>
+              </Tooltip>
+            )}
+
             {/* Identifier section - conditionally rendered */}
             {displayProperties?.key && (
               <div className="flex-shrink-0 flex items-center h-full min-w-24">
@@ -298,35 +395,6 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
                 "min-w-60": displayProperties?.key,
               })}
             >
-              {/* select checkbox */}
-              {projectId && canSelectIssues && (
-                <Tooltip
-                  tooltipContent={
-                    <>
-                      Only work items within the current
-                      <br />
-                      project can be selected.
-                    </>
-                  }
-                  disabled={issueDetail.project_id === projectId}
-                >
-                  <div className="flex-shrink-0 grid place-items-center w-3.5 mr-1 absolute left-1">
-                    <MultipleSelectEntityAction
-                      className={cn(
-                        "opacity-0 pointer-events-none group-hover/list-block:opacity-100 group-hover/list-block:pointer-events-auto transition-opacity",
-                        {
-                          "opacity-100 pointer-events-auto": isIssueSelected,
-                        }
-                      )}
-                      groupId={SPREADSHEET_SELECT_GROUP}
-                      id={issueDetail.id}
-                      selectionHelpers={selectionHelpers}
-                      disabled={issueDetail.project_id !== projectId}
-                    />
-                  </div>
-                </Tooltip>
-              )}
-
               {/* sub issues indentation */}
               {nestingLevel !== 0 && <div style={{ width: subIssueIndentation }} />}
 
@@ -349,27 +417,37 @@ const IssueRowDetails = observer(function IssueRowDetails(props: IssueRowDetails
               </div>
 
               <div className="flex items-center gap-2 justify-between h-full w-full truncate my-auto">
-                <div className="w-full line-clamp-1 text-14 text-primary">
+                <div className="flex items-center gap-1 w-full line-clamp-1 text-14 text-primary">
                   <div className="w-full overflow-hidden">
                     <Tooltip tooltipContent={issueDetail.name} isMobile={isMobile}>
-                      <div
-                        className="h-full w-full cursor-pointer truncate pr-4 text-left text-13 text-primary focus:outline-none"
-                        tabIndex={-1}
-                      >
+                      <div className="h-full w-full truncate pr-4 text-left text-13 text-primary focus:outline-none">
                         {issueDetail.name}
                       </div>
                     </Tooltip>
                   </div>
+                  {isAIGeneratedFromPRD && (
+                    <Badge variant="neutral-primary" size="sm" className="shrink-0 text-[10px] uppercase tracking-wide">
+                      AI
+                    </Badge>
+                  )}
                 </div>
                 <div
                   className={`opacity-0 group-hover:opacity-100 transition-opacity ${isMenuActive ? "!opacity-100" : ""}`}
                   onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      e.stopPropagation();
+                    }
+                  }}
+                  role="presentation"
                 >
                   {quickActions({
                     issue: issueDetail,
                     parentRef: cellRef,
                     customActionButton,
                     portalElement: portalElement.current,
+                    selectionHelpers,
+                    groupId: SPREADSHEET_SELECT_GROUP,
                   })}
                 </div>
               </div>

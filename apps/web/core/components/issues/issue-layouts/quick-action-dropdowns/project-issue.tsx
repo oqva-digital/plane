@@ -24,6 +24,7 @@ import type { MenuItemFactoryProps } from "./helper";
 import { useProjectIssueMenuItems } from "./helper";
 
 export const ProjectIssueQuickActions = observer(function ProjectIssueQuickActions(props: IQuickActionProps) {
+  /* eslint-disable @typescript-eslint/no-unsafe-assignment -- props from parent */
   const {
     issue,
     handleDelete,
@@ -34,6 +35,8 @@ export const ProjectIssueQuickActions = observer(function ProjectIssueQuickActio
     readOnly = false,
     placements = "bottom-end",
     parentRef,
+    selectionHelpers,
+    groupId,
   } = props;
   // router
   const { workspaceSlug } = useParams();
@@ -92,6 +95,8 @@ export const ProjectIssueQuickActions = observer(function ProjectIssueQuickActio
     handleUpdate,
     handleArchive,
     storeType: EIssuesStoreType.PROJECT,
+    selectionHelpers,
+    groupId,
   };
 
   const MENU_ITEMS = useProjectIssueMenuItems(menuItemProps);
@@ -147,7 +152,7 @@ export const ProjectIssueQuickActions = observer(function ProjectIssueQuickActio
       <CustomMenu
         ellipsis
         placement={placements}
-        customButton={customActionButton}
+        customButton={customActionButton  }
         portalElement={portalElement}
         menuItemsClassName="z-[14]"
         maxHeight="lg"

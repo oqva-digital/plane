@@ -53,6 +53,9 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
   }
   // ref
   const issueTitleRef = useRef<HTMLInputElement>(null);
+  const lastDisplayDataRef = useRef<Partial<TIssue> | undefined>(undefined);
+  const lastDescriptionRef = useRef<string | undefined>(undefined);
+  const copySnapshotRef = useRef<(Partial<TIssue> & { description_html?: string }) | null>(null);
   // states
   const [changesMade, setChangesMade] = useState<Partial<TIssue> | null>(null);
   const [createMore, setCreateMore] = useState(false);
@@ -62,9 +65,11 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
   const [uploadedAssetIds, setUploadedAssetIds] = useState<string[]>([]);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [copyProgress, setCopyProgress] = useState<{ done: number; total: number } | null>(null);
+
   // State to preserve data/description when modal is closing (prevents content flash during close animation)
   const [preservedData, setPreservedData] = useState<Partial<TIssue> | undefined>(undefined);
   const [preservedDescription, setPreservedDescription] = useState<string | undefined>(undefined);
+
   // store hooks
   const { t } = useTranslation();
   const { workspaceSlug, projectId: routerProjectId, cycleId, moduleId, workItem } = useParams();

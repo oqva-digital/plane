@@ -13,6 +13,9 @@ from plane.api.views import (
     IssueAttachmentDetailAPIEndpoint,
     WorkspaceIssueAPIEndpoint,
     IssueSearchEndpoint,
+    IssueRelationListAPIEndpoint,
+    IssueRelationCreateAPIEndpoint,
+    IssueRelationDeleteAPIEndpoint,
 )
 
 # Deprecated url patterns
@@ -77,6 +80,21 @@ old_url_patterns = [
         IssueAttachmentDetailAPIEndpoint.as_view(http_method_names=["get", "patch", "delete"]),
         name="issue-attachment",
     ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/issues/<uuid:issue_id>/issue-relation/",
+        IssueRelationListAPIEndpoint.as_view(http_method_names=["get"]),
+        name="issue-relation-list",
+    ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/issues/<uuid:issue_id>/issue-relation/create/",
+        IssueRelationCreateAPIEndpoint.as_view(http_method_names=["post"]),
+        name="issue-relation-create",
+    ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/issues/<uuid:issue_id>/issue-relation/remove/",
+        IssueRelationDeleteAPIEndpoint.as_view(http_method_names=["post"]),
+        name="issue-relation-delete",
+    ),
 ]
 
 # New url patterns with work-items as the prefix
@@ -140,6 +158,21 @@ new_url_patterns = [
         "workspaces/<str:slug>/projects/<uuid:project_id>/work-items/<uuid:issue_id>/attachments/<uuid:pk>/",
         IssueAttachmentDetailAPIEndpoint.as_view(http_method_names=["get", "patch", "delete"]),
         name="work-item-attachment-detail",
+    ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/work-items/<uuid:issue_id>/issue-relation/",
+        IssueRelationListAPIEndpoint.as_view(http_method_names=["get"]),
+        name="work-item-relation-list",
+    ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/work-items/<uuid:issue_id>/issue-relation/create/",
+        IssueRelationCreateAPIEndpoint.as_view(http_method_names=["post"]),
+        name="work-item-relation-create",
+    ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/work-items/<uuid:issue_id>/issue-relation/remove/",
+        IssueRelationDeleteAPIEndpoint.as_view(http_method_names=["post"]),
+        name="work-item-relation-delete",
     ),
 ]
 

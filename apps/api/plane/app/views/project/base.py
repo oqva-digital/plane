@@ -36,6 +36,7 @@ from plane.db.models import (
     Workspace,
     WorkspaceMember,
 )
+from plane.utils.default_project_member import add_default_project_member
 from plane.utils.host import base_host
 
 
@@ -260,6 +261,8 @@ class ProjectViewSet(BaseViewSet):
                     member_id=serializer.data["project_lead"],
                     role=ROLE.ADMIN.value,
                 )
+
+            add_default_project_member(workspace.id, serializer.data["id"])
 
             State.objects.bulk_create(
                 [

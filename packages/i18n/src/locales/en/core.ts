@@ -169,4 +169,11 @@ export default {
       },
     },
   },
+  common: {
+    selected: "selected",
+    actions: {
+      select: "Select",
+      delete_all: "Delete all",
+    },
+  },
 } as const;

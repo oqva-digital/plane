@@ -26,6 +26,12 @@ from .issue import (
     IssueSearchEndpoint,
 )
 
+from .issue_relation import (
+    IssueRelationListAPIEndpoint,
+    IssueRelationCreateAPIEndpoint,
+    IssueRelationDeleteAPIEndpoint,
+)
+
 from .cycle import (
     CycleListCreateAPIEndpoint,
     CycleDetailAPIEndpoint,
@@ -57,3 +63,8 @@ from .user import UserEndpoint
 from .invite import WorkspaceInvitationsViewset
 
 from .sticky import StickyViewSet
+
+from .page import (
+    PageListCreateAPIEndpoint,
+    PageDetailAPIEndpoint,
+)
