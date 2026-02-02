@@ -15,6 +15,7 @@ from plane.app.permissions import ProjectEntityPermission
 from plane.db.models import (
     Page,
     Project,
+    ProjectMember,
     ProjectPage,
     UserFavorite,
 )
@@ -205,6 +206,21 @@ class PageDetailAPIEndpoint(BaseAPIView):
             return Response(
                 {"error": "The page should be archived before deleting"},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Only owner or project admin can delete the page
+        if page.owned_by_id != request.user.id and (
+            not ProjectMember.objects.filter(
+                workspace__slug=slug,
+                member=request.user,
+                role=20,
+                project_id=project_id,
+                is_active=True,
+            ).exists()
+        ):
+            return Response(
+                {"error": "Only admin or owner can delete the page"},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         # Send the model activity webhook before deletion
