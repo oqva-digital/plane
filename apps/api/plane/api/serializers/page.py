@@ -1,4 +1,5 @@
 # Third party imports
+import markdown
 from rest_framework import serializers
 
 # Module imports
@@ -17,8 +18,15 @@ class PageCreateSerializer(BaseSerializer):
     Serializer for creating pages via the public API.
 
     Handles page creation including label assignment and project association.
+    Accepts description_html or description_md; when description_md is provided,
+    it is converted to HTML (tables and fenced_code extensions).
     """
 
+    description_md = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        write_only=True,
+    )
     labels = serializers.ListField(
         child=serializers.PrimaryKeyRelatedField(queryset=Label.objects.all()),
         write_only=True,
@@ -30,6 +38,7 @@ class PageCreateSerializer(BaseSerializer):
         fields = [
             "name",
             "description_html",
+            "description_md",
             "access",
             "color",
             "labels",
@@ -54,10 +63,17 @@ class PageCreateSerializer(BaseSerializer):
             raise serializers.ValidationError("Project not found")
         if not project.page_view:
             raise serializers.ValidationError("Pages are not enabled for this project")
+        # Convert markdown to HTML when description_md is provided
+        if data.get("description_md"):
+            data["description_html"] = markdown.markdown(
+                data["description_md"],
+                extensions=["tables", "fenced_code"],
+            )
         return data
 
     def create(self, validated_data):
         labels = validated_data.pop("labels", None)
+        validated_data.pop("description_md", None)  # not a model field
         project_id = self.context["project_id"]
         workspace_id = self.context["workspace_id"]
         owned_by_id = self.context["owned_by_id"]
