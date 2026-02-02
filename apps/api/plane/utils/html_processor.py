@@ -300,17 +300,15 @@ def _has_markdown_patterns(text):
     # Blockquote pattern (> text)
     blockquote_pattern = r"^>\s+.+"
 
-    # Check each line for multiline patterns
+    # Check each line for patterns
     list_item_count = 0
     for line in text.split("\n"):
         line = line.strip()
-        if re.search(heading_pattern, line, re.MULTILINE):
+        if re.search(heading_pattern, line):
             found_patterns.add("heading")
-        if re.search(unordered_list_pattern, line, re.MULTILINE) or re.search(
-            ordered_list_pattern, line, re.MULTILINE
-        ):
+        if re.search(unordered_list_pattern, line) or re.search(ordered_list_pattern, line):
             list_item_count += 1
-        if re.search(blockquote_pattern, line, re.MULTILINE):
+        if re.search(blockquote_pattern, line):
             found_patterns.add("blockquote")
 
     # Only count lists if there are at least 2 items (avoid single dash false positives)
