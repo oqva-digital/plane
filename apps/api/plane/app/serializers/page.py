@@ -124,10 +124,9 @@ class PageSerializer(BaseSerializer):
 
 class PageDetailSerializer(PageSerializer):
     description_html = serializers.CharField()
-    description_md = serializers.CharField(read_only=True)
 
     class Meta(PageSerializer.Meta):
-        fields = PageSerializer.Meta.fields + ["description_html", "description_md"]
+        fields = PageSerializer.Meta.fields + ["description_html"]
 
 
 class PageVersionSerializer(BaseSerializer):
@@ -158,7 +157,6 @@ class PageVersionDetailSerializer(BaseSerializer):
             "description_binary",
             "description_html",
             "description_json",
-            "description_md",
             "owned_by",
             "created_at",
             "updated_at",

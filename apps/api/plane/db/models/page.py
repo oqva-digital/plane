@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.db import models
 
 # Module imports
-from plane.utils.html_processor import strip_tags, html_to_markdown
+from plane.utils.html_processor import strip_tags
 
 from .base import BaseModel
 
@@ -29,7 +29,6 @@ class Page(BaseModel):
     description_binary = models.BinaryField(null=True)
     description_html = models.TextField(blank=True, default="<p></p>")
     description_stripped = models.TextField(blank=True, null=True)
-    description_md = models.TextField(blank=True, null=True)
     owned_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="pages")
     access = models.PositiveSmallIntegerField(choices=((0, "Public"), (1, "Private")), default=0)
     color = models.CharField(max_length=255, blank=True)
@@ -70,12 +69,6 @@ class Page(BaseModel):
             None
             if (self.description_html == "" or self.description_html is None)
             else strip_tags(self.description_html)
-        )
-        # Convert HTML to Markdown
-        self.description_md = (
-            None
-            if (self.description_html == "" or self.description_html is None)
-            else html_to_markdown(self.description_html)
         )
         super(Page, self).save(*args, **kwargs)
 
@@ -167,7 +160,6 @@ class PageVersion(BaseModel):
     description_html = models.TextField(blank=True, default="<p></p>")
     description_stripped = models.TextField(blank=True, null=True)
     description_json = models.JSONField(default=dict, blank=True)
-    description_md = models.TextField(blank=True, null=True)
     sub_pages_data = models.JSONField(default=dict, blank=True)
 
     class Meta:
@@ -182,11 +174,5 @@ class PageVersion(BaseModel):
             None
             if (self.description_html == "" or self.description_html is None)
             else strip_tags(self.description_html)
-        )
-        # Convert HTML to Markdown
-        self.description_md = (
-            None
-            if (self.description_html == "" or self.description_html is None)
-            else html_to_markdown(self.description_html)
         )
         super(PageVersion, self).save(*args, **kwargs)
