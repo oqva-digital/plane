@@ -1,0 +1,16 @@
+{
+  "status": "COMPLETED",
+  "assessments": [
+    {
+      "issue": "Do not change the markdown version - the version that was there (3.7) was working correctly",
+      "response": "WILL_DO",
+      "action": "Reverted markdown==3.6 back to markdown==3.7 in apps/api/requirements/base.txt"
+    },
+    {
+      "issue": "Markdown to HTML conversion not working when n8n sends markdown via POST API - description_html ends up with markdown text wrapped in editor paragraph tags instead of proper HTML",
+      "response": "WILL_DO",
+      "action": "Fixed the issue in apps/api/plane/utils/html_processor.py by: (1) Updated is_markdown_content() to recognize hybrid content where some formatting is already HTML (e.g., <strong>, <em>) but other markdown syntax remains raw (e.g., # headings). Added 'strong', 'b', 'em', 'i', 'br' to acceptable_tags so that presence of these tags doesn't prevent markdown detection. (2) Updated process_description_html() to handle hybrid content by first converting existing HTML to markdown (preserving formatting like bold/italic as **text** and *text*), then converting the unified markdown back to proper HTML. This ensures that both raw markdown syntax (headings, lists) and already-converted HTML formatting (bold, italic) are properly processed."
+    }
+  ],
+  "summary": "Reverted the markdown library version to 3.7 as requested. Fixed the markdown-to-HTML conversion issue for API requests by improving the markdown detection to handle hybrid content (mix of raw markdown and already-converted HTML), and updating the processing logic to normalize everything through markdown first before final HTML conversion."
+}

@@ -236,12 +236,18 @@ def is_markdown_content(content):
     if not all_tags:
         return _has_markdown_patterns(content)
 
-    # If the HTML is just a simple wrapper (like <p>content</p>),
-    # check if the inner text has markdown patterns
-    wrapper_tags = {"p", "div", "span"}
-    is_simple_wrapper = all(tag.name in wrapper_tags for tag in all_tags)
+    # Tags that are considered acceptable for markdown detection
+    # These include wrapper tags AND inline formatting tags that may
+    # have been partially converted by the editor
+    acceptable_tags = {
+        "p", "div", "span",  # wrapper tags
+        "strong", "b",  # bold (already converted)
+        "em", "i",  # italic (already converted)
+        "br",  # line breaks
+    }
+    is_acceptable_structure = all(tag.name in acceptable_tags for tag in all_tags)
 
-    if is_simple_wrapper:
+    if is_acceptable_structure:
         # Check if the text content contains markdown patterns
         return _has_markdown_patterns(text_content)
 
@@ -367,7 +373,9 @@ def process_description_html(content):
     Process description_html content.
 
     If the content appears to be markdown wrapped in minimal HTML,
-    convert it to proper HTML first.
+    convert it to proper HTML first. Handles hybrid content where
+    some formatting is already HTML (e.g., <strong>) but other
+    markdown syntax remains unconverted (e.g., # headings).
 
     Args:
         content: The description_html content
@@ -380,12 +388,12 @@ def process_description_html(content):
 
     # Check if the content is markdown wrapped in simple HTML
     if is_markdown_content(content):
-        # Extract the text content (strip HTML wrappers)
-        # Use separator='\n' to preserve line breaks between elements
-        soup = BeautifulSoup(content, "html.parser")
-        text_content = soup.get_text(separator="\n")
+        # For hybrid content (mix of HTML formatting and raw markdown),
+        # first convert existing HTML to markdown, then convert all to HTML
+        # This ensures consistent output
+        md_content = html_to_markdown(content)
 
-        # Convert markdown to HTML
-        return markdown_to_html(text_content)
+        # Convert the unified markdown back to HTML
+        return markdown_to_html(md_content)
 
     return content
