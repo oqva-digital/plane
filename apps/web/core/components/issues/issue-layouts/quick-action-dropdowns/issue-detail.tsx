@@ -92,7 +92,7 @@ export const WorkItemDetailQuickActions = observer(function WorkItemDetailQuickA
   const duplicateIssuePayload = omit(
     {
       ...issue,
-      name: `${issue.name} (copy)`,
+      name: issue.name,
       sourceIssueId: issue.id,
     },
     ["id"]

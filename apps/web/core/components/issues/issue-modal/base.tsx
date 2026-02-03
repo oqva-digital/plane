@@ -88,15 +88,22 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
   const projectIdFromRouter = getProjectByIdentifier(routerProjectIdentifier)?.id;
   const projectId = data?.project_id ?? routerProjectId?.toString() ?? projectIdFromRouter;
 
+  // Resolved project for rendering: use data.project_id immediately so we don't wait for the effect
+  // (avoids returning null on first render when opening "add item" and prevents infinite loading)
+  const resolvedActiveProjectId =
+    data?.project_id ??
+    activeProjectId ??
+    (allowedProjectIds?.length ? (projectId?.toString() ?? allowedProjectIds[0]) : null);
+
   const fetchIssueDetail = async (issueId: string | undefined) => {
-    setDescription(undefined);
     if (!workspaceSlug) return;
 
     if (!projectId || issueId === undefined || !fetchIssueDetails) {
-      // Set description to the issue description from the props if available
+      // No fetch: set description from props or empty (do not set undefined to avoid loader flash when effect re-runs)
       setDescription(data?.description_html || "<p></p>");
       return;
     }
+    setDescription(undefined);
     const response = await fetchIssue(workspaceSlug.toString(), projectId.toString(), issueId);
     if (response) setDescription(response?.description_html || "<p></p>");
   };
@@ -507,7 +514,17 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
           setCopyProgress(null);
         }
       } else if (!data?.id) {
-        response = await handleCreateIssue(payload, is_draft_issue);
+        // Add " (Copy)" suffix when duplicating (with or without descendants) so created issue is clearly a copy
+        const createPayload: Partial<TIssue> = sourceIssueId
+          ? (() => {
+              const name = (payload.name ?? "").trim();
+              return {
+                ...payload,
+                name: name.endsWith(" (Copy)") ? name : `${name || "Issue"} (Copy)`,
+              };
+            })()
+          : payload;
+        response = await handleCreateIssue(createPayload, is_draft_issue);
       } else {
         response = await handleUpdateIssue(payload);
       }
@@ -537,14 +554,19 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
   const handleDuplicateIssueModal = (value: boolean) => setIsDuplicateModalOpen(value);
 
   // don't open the modal if there are no projects
-  if (!allowedProjectIds || allowedProjectIds.length === 0 || !activeProjectId) return null;
+  if (!allowedProjectIds || allowedProjectIds.length === 0 || !resolvedActiveProjectId) return null;
+
+  // Use "<p></p>" fallback so the description editor never receives undefined when creating/adding an issue
+  // (avoids infinite loader when description state is still pending and effect re-runs on activeProjectId change)
+  const descriptionForForm =
+    displayDescription ?? displayData?.description_html ?? "<p></p>";
 
   const commonIssueModalProps: IssueFormProps = {
     issueTitleRef: issueTitleRef,
     data: displayData
       ? {
           ...displayData,
-          description_html: displayDescription ?? displayData.description_html,
+          description_html: descriptionForForm,
           cycle_id: displayData.cycle_id ?? cycleId?.toString() ?? null,
           module_ids: displayData.module_ids ?? (moduleId ? [moduleId.toString()] : null),
         }
@@ -552,7 +574,7 @@ export const CreateUpdateIssueModalBase = observer(function CreateUpdateIssueMod
     onAssetUpload: handleUpdateUploadedAssetIds,
     onClose: handleClose,
     onSubmit: (payload) => handleFormSubmit(payload, isDraft),
-    projectId: activeProjectId,
+    projectId: resolvedActiveProjectId,
     isCreateMoreToggleEnabled: createMore,
     onCreateMoreToggleChange: handleCreateMoreToggleChange,
     isCopyDescendantsEnabled: copyDescendants,

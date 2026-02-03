@@ -81,6 +81,11 @@ export const IssueDescriptionEditor = observer(function IssueDescriptionEditor(p
 
   const { getIndex } = getTabIndex(ETabIndices.ISSUE_FORM, isMobile);
 
+  // In create mode (no issueId), never show loader for undefined description – use "<p></p>" so modal doesn't stick in loading
+  const effectiveDescription =
+    descriptionHtmlData ?? (issueId ? undefined : "<p></p>");
+  const showDescriptionLoader = !projectId || effectiveDescription === undefined;
+
   useEffect(() => {
     if (descriptionHtmlData) handleDescriptionHTMLDataChange(descriptionHtmlData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -149,7 +154,7 @@ export const IssueDescriptionEditor = observer(function IssueDescriptionEditor(p
 
   return (
     <div className="border-[0.5px] border-subtle-1 bg-layer-2 rounded-lg relative">
-      {descriptionHtmlData === undefined || !projectId ? (
+      {showDescriptionLoader ? (
         <Loader className="min-h-[120px] max-h-64 space-y-2 overflow-hidden rounded-md border border-subtle p-3 py-2 pt-3">
           <Loader.Item width="100%" height="26px" />
           <div className="flex items-center gap-2">
@@ -179,7 +184,7 @@ export const IssueDescriptionEditor = observer(function IssueDescriptionEditor(p
                 editable
                 id="issue-modal-editor"
                 initialValue={value ?? ""}
-                value={descriptionHtmlData}
+                value={effectiveDescription}
                 workspaceSlug={workspaceSlug?.toString()}
                 workspaceId={workspaceId}
                 projectId={projectId}
