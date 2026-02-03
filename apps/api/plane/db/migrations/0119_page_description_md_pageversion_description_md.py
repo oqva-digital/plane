@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("db", "0116_workspacemember_explored_features_and_more"),
+        ("db", "0118_issue_github_link_charfield"),
     ]
 
     operations = [
