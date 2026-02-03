@@ -96,6 +96,9 @@ export class BasePage extends ExtendedBasePage implements TBasePage {
   created_at: Date | undefined;
   updated_at: Date | undefined;
   deleted_at: Date | undefined;
+  work_item_id: string | undefined | null;
+  work_item_name: string | undefined | null;
+  document_type: string | undefined | null;
   // helpers
   oldName: string = "";
   // services
@@ -134,6 +137,9 @@ export class BasePage extends ExtendedBasePage implements TBasePage {
     this.updated_at = page?.updated_at || undefined;
     this.oldName = page?.name || "";
     this.deleted_at = page?.deleted_at || undefined;
+    this.work_item_id = page?.work_item_id ?? undefined;
+    this.work_item_name = page?.work_item_name ?? undefined;
+    this.document_type = page?.document_type ?? undefined;
 
     makeObservable(this, {
       // loaders
@@ -158,6 +164,9 @@ export class BasePage extends ExtendedBasePage implements TBasePage {
       created_at: observable.ref,
       updated_at: observable.ref,
       deleted_at: observable.ref,
+      work_item_id: observable.ref,
+      work_item_name: observable.ref,
+      document_type: observable.ref,
       isSyncingWithServer: observable.ref,
       // helpers
       oldName: observable.ref,
@@ -192,7 +201,7 @@ export class BasePage extends ExtendedBasePage implements TBasePage {
       () => this.name,
       (name) => {
         this.isSubmitting = "submitting";
-        this.services
+        void this.services
           .update({
             name,
           })
@@ -234,6 +243,9 @@ export class BasePage extends ExtendedBasePage implements TBasePage {
       created_at: this.created_at,
       updated_at: this.updated_at,
       deleted_at: this.deleted_at,
+      work_item_id: this.work_item_id,
+      work_item_name: this.work_item_name,
+      document_type: this.document_type,
       ...this.asJSONExtended,
     };
   }

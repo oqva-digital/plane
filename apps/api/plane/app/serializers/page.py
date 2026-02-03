@@ -28,6 +28,10 @@ class PageSerializer(BaseSerializer):
     # Many to many
     label_ids = serializers.ListField(child=serializers.UUIDField(), required=False)
     project_ids = serializers.ListField(child=serializers.UUIDField(), required=False)
+    # Work item and document type (read-only via SerializerMethodField to avoid breaking list)
+    work_item_id = serializers.SerializerMethodField()
+    work_item_name = serializers.SerializerMethodField()
+    document_type = serializers.SerializerMethodField()
 
     class Meta:
         model = Page
@@ -51,8 +55,24 @@ class PageSerializer(BaseSerializer):
             "logo_props",
             "label_ids",
             "project_ids",
+            "work_item_id",
+            "work_item_name",
+            "document_type",
         ]
         read_only_fields = ["workspace", "owned_by"]
+
+    def get_work_item_id(self, obj):
+        return getattr(obj, "work_item_id", None)
+
+    def get_work_item_name(self, obj):
+        try:
+            work_item = getattr(obj, "work_item", None)
+            return getattr(work_item, "name", None) if work_item else None
+        except Exception:
+            return None
+
+    def get_document_type(self, obj):
+        return getattr(obj, "document_type", None) or ""
 
     def create(self, validated_data):
         labels = validated_data.pop("labels", None)

@@ -54,6 +54,16 @@ class Page(BaseModel):
     external_id = models.CharField(max_length=255, null=True, blank=True)
     external_source = models.CharField(max_length=255, null=True, blank=True)
 
+    work_item = models.ForeignKey(
+        "db.Issue",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="linked_pages",
+        db_index=True,
+    )
+    document_type = models.CharField(max_length=255, blank=True)
+
     class Meta:
         verbose_name = "Page"
         verbose_name_plural = "Pages"

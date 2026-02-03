@@ -5,17 +5,23 @@ import type { TPageFilterProps, TPageFilters } from "@plane/types";
 // components
 import { FilterCreatedDate } from "@/components/common/filters/created-at";
 import { FilterCreatedBy } from "@/components/common/filters/created-by";
+import { FilterDocumentType } from "@/components/common/filters/document-type";
+import { FilterWorkItem } from "@/components/common/filters/work-item";
 import { FilterOption } from "@/components/issues/issue-layouts/filters";
 import { usePlatformOS } from "@/hooks/use-platform-os";
+
+type WorkItemOption = { id: string; name: string };
 
 type Props = {
   filters: TPageFilters;
   handleFiltersUpdate: <T extends keyof TPageFilters>(filterKey: T, filterValue: TPageFilters[T]) => void;
   memberIds?: string[] | undefined;
+  workItems?: WorkItemOption[];
+  documentTypeOptions?: string[];
 };
 
 export const PageFiltersSelection = observer(function PageFiltersSelection(props: Props) {
-  const { filters, handleFiltersUpdate, memberIds } = props;
+  const { filters, handleFiltersUpdate, memberIds, workItems = [], documentTypeOptions = [] } = props;
   // states
   const [filtersSearchQuery, setFiltersSearchQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,8 +51,8 @@ export const PageFiltersSelection = observer(function PageFiltersSelection(props
     }
 
     handleFiltersUpdate("filters", {
-      ...filters.filters,
-      [key]: newValues,
+      ...(filters.filters ?? {}),
+      [key]: Array.isArray(newValues) ? [...newValues] : newValues,
     });
   };
 
@@ -100,6 +106,26 @@ export const PageFiltersSelection = observer(function PageFiltersSelection(props
             handleUpdate={(val) => handleFilters("created_by", val)}
             searchQuery={filtersSearchQuery}
             memberIds={memberIds}
+          />
+        </div>
+
+        {/* work item */}
+        <div className="py-2">
+          <FilterWorkItem
+            appliedFilters={filters.filters?.work_item ?? null}
+            handleUpdate={(val) => handleFilters("work_item", val)}
+            searchQuery={filtersSearchQuery}
+            workItems={workItems}
+          />
+        </div>
+
+        {/* document type */}
+        <div className="py-2">
+          <FilterDocumentType
+            appliedFilters={filters.filters?.document_type ?? null}
+            handleUpdate={(val) => handleFilters("document_type", val)}
+            searchQuery={filtersSearchQuery}
+            options={documentTypeOptions}
           />
         </div>
       </div>

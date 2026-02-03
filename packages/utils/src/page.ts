@@ -1,5 +1,6 @@
 import { sortBy } from "lodash-es";
 // plane imports
+import { EPageAccess } from "@plane/types";
 import type {
   TPage,
   TPageFilterProps,
@@ -19,8 +20,8 @@ import { satisfiesDateFilter } from "./filter";
  */
 export const filterPagesByPageType = (pageType: TPageNavigationTabs, pages: TPage[]): TPage[] =>
   pages.filter((page) => {
-    if (pageType === "public") return page.access === 0 && !page.archived_at;
-    if (pageType === "private") return page.access === 1 && !page.archived_at;
+    if (pageType === "public") return page.access === EPageAccess.PUBLIC && !page.archived_at;
+    if (pageType === "private") return page.access === EPageAccess.PRIVATE && !page.archived_at;
     if (pageType === "archived") return page.archived_at;
     return true;
   });
@@ -73,6 +74,14 @@ export const shouldFilterPage = (page: TPage, filters: TPageFilterProps | undefi
       filters?.created_at.forEach((dateFilter) => {
         fallsInFilters = fallsInFilters && !!createdDate && satisfiesDateFilter(createdDate, dateFilter);
       });
+    }
+    if (filterKey === "work_item" && filters?.work_item && filters.work_item.length > 0)
+      fallsInFilters = fallsInFilters && !!page.work_item_id && filters.work_item.includes(page.work_item_id);
+    if (filterKey === "document_type" && filters?.document_type && filters.document_type.length > 0) {
+      const hasOther = filters.document_type.includes("Other");
+      const pageTypeEmpty = !page.document_type?.trim();
+      const pageTypeInSelected = !!page.document_type && filters.document_type.includes(page.document_type);
+      fallsInFilters = fallsInFilters && (pageTypeInSelected || (hasOther && pageTypeEmpty));
     }
   });
   if (filters?.favorites && !page.is_favorite) fallsInFilters = false;

@@ -8,6 +8,7 @@ import { Header, EHeaderVariant } from "@plane/ui";
 import { calculateTotalFilters } from "@plane/utils";
 // components
 import { FiltersDropdown } from "@/components/issues/issue-layouts/filters";
+import { DOCUMENT_TYPE_OTHER } from "@/components/common/filters/document-type-constants";
 // hooks
 import { useMember } from "@/hooks/store/use-member";
 // plane web hooks
@@ -31,10 +32,33 @@ export const PagesListHeaderRoot = observer(function PagesListHeaderRoot(props: 
   const { pageType, projectId, storeType, workspaceSlug } = props;
   const { t } = useTranslation();
   // store hooks
-  const { filters, updateFilters, clearAllFilters } = usePageStore(storeType);
+  const pageStore = usePageStore(storeType);
+  const { filters, updateFilters, clearAllFilters } = pageStore;
   const {
     workspace: { workspaceMemberIds },
   } = useMember();
+
+  // Derived from store.data without useMemo so MobX reactivity works: pageStore.data
+  // is mutated in place, so the reference never changes and useMemo would keep stale values.
+  const workItems = (() => {
+    const seen = new Set<string>();
+    return Object.values(pageStore.data ?? {}).reduce<{ id: string; name: string }[]>((acc, p) => {
+      if (p.work_item_id && p.work_item_name && !seen.has(p.work_item_id)) {
+        seen.add(p.work_item_id);
+        acc.push({ id: p.work_item_id, name: p.work_item_name });
+      }
+      return acc;
+    }, []);
+  })();
+
+  const documentTypeOptions = (() => {
+    const fromPages = new Set<string>();
+    Object.values(pageStore.data ?? {}).forEach((p) => {
+      if (p.document_type?.trim()) fromPages.add(p.document_type.trim());
+    });
+    const sorted = Array.from(fromPages).sort();
+    return [...sorted, DOCUMENT_TYPE_OTHER];
+  })();
 
   const handleRemoveFilter = useCallback(
     (key: keyof TPageFilterProps, value: string | null) => {
@@ -46,7 +70,7 @@ export const PagesListHeaderRoot = observer(function PagesListHeaderRoot(props: 
         else newValues = newValues.filter((val) => val !== value);
       }
 
-      updateFilters("filters", { [key]: newValues });
+      updateFilters("filters", { ...(filters.filters ?? {}), [key]: newValues });
     },
     [filters.filters, updateFilters]
   );
@@ -82,6 +106,8 @@ export const PagesListHeaderRoot = observer(function PagesListHeaderRoot(props: 
               filters={filters}
               handleFiltersUpdate={updateFilters}
               memberIds={workspaceMemberIds ?? undefined}
+              workItems={workItems}
+              documentTypeOptions={documentTypeOptions}
             />
           </FiltersDropdown>
         </Header.RightItem>
@@ -93,6 +119,7 @@ export const PagesListHeaderRoot = observer(function PagesListHeaderRoot(props: 
             handleClearAllFilters={clearAllFilters}
             handleRemoveFilter={handleRemoveFilter}
             alwaysAllowEditing
+            workItems={workItems}
           />
         </Header>
       )}

@@ -34,14 +34,14 @@ class PageListCreateAPIEndpoint(BaseAPIView):
     use_read_replica = True
 
     def get_queryset(self):
-        return (
+        qs = (
             Page.objects.filter(
                 project_pages__project_id=self.kwargs.get("project_id"),
                 project_pages__deleted_at__isnull=True,
             )
             .filter(workspace__slug=self.kwargs.get("slug"))
             .filter(archived_at__isnull=True)
-            .select_related("workspace", "owned_by", "parent")
+            .select_related("workspace", "owned_by", "parent", "work_item")
             .prefetch_related("labels", "projects")
             .annotate(
                 is_favorite=Exists(
@@ -55,6 +55,7 @@ class PageListCreateAPIEndpoint(BaseAPIView):
             )
             .order_by("-created_at")
         )
+        return qs
 
     def post(self, request, slug, project_id):
         """Create page
@@ -91,10 +92,18 @@ class PageListCreateAPIEndpoint(BaseAPIView):
         """List pages
 
         Retrieve all pages in a project.
+        Optional query params: work_item_id, document_type (filter by work item or document type).
         """
+        queryset = self.get_queryset()
+        work_item_id = request.query_params.get("work_item_id")
+        document_type = request.query_params.get("document_type")
+        if work_item_id:
+            queryset = queryset.filter(work_item_id=work_item_id)
+        if document_type:
+            queryset = queryset.filter(document_type=document_type)
         return self.paginate(
             request=request,
-            queryset=self.get_queryset(),
+            queryset=queryset,
             on_results=lambda pages: PageSerializer(
                 pages, many=True, fields=self.fields, expand=self.expand
             ).data,
@@ -117,7 +126,7 @@ class PageDetailAPIEndpoint(BaseAPIView):
                 project_pages__deleted_at__isnull=True,
             )
             .filter(workspace__slug=self.kwargs.get("slug"))
-            .select_related("workspace", "owned_by", "parent")
+            .select_related("workspace", "owned_by", "parent", "work_item")
             .prefetch_related("labels", "projects")
             .annotate(
                 is_favorite=Exists(

@@ -10,6 +10,7 @@ from plane.db.models import (
     Label,
     ProjectPage,
     Project,
+    Issue,
 )
 
 
@@ -32,6 +33,11 @@ class PageCreateSerializer(BaseSerializer):
         write_only=True,
         required=False,
     )
+    work_item = serializers.PrimaryKeyRelatedField(
+        queryset=Issue.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = Page
@@ -43,6 +49,8 @@ class PageCreateSerializer(BaseSerializer):
             "color",
             "labels",
             "parent",
+            "work_item",
+            "document_type",
         ]
         read_only_fields = [
             "id",
@@ -74,6 +82,7 @@ class PageCreateSerializer(BaseSerializer):
     def create(self, validated_data):
         labels = validated_data.pop("labels", None)
         validated_data.pop("description_md", None)  # not a model field
+        work_item = validated_data.pop("work_item", None)
         project_id = self.context["project_id"]
         workspace_id = self.context["workspace_id"]
         owned_by_id = self.context["owned_by_id"]
@@ -85,6 +94,7 @@ class PageCreateSerializer(BaseSerializer):
             description_html=description_html,
             owned_by_id=owned_by_id,
             workspace_id=workspace_id,
+            work_item_id=work_item.id if work_item else None,
         )
 
         # Create the project page association
@@ -120,10 +130,12 @@ class PageSerializer(BaseSerializer):
     Serializer for page responses in the public API.
 
     Provides page data including description_html for API responses.
+    work_item_name is read from the related Issue, not stored on Page.
     """
 
     label_ids = serializers.SerializerMethodField()
     project_ids = serializers.SerializerMethodField()
+    work_item_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Page
@@ -146,6 +158,9 @@ class PageSerializer(BaseSerializer):
             "logo_props",
             "label_ids",
             "project_ids",
+            "work_item_id",
+            "work_item_name",
+            "document_type",
         ]
         read_only_fields = [
             "id",
@@ -162,3 +177,8 @@ class PageSerializer(BaseSerializer):
 
     def get_project_ids(self, obj):
         return list(obj.projects.values_list("id", flat=True))
+
+    def get_work_item_name(self, obj):
+        if obj.work_item_id and hasattr(obj, "work_item") and obj.work_item:
+            return obj.work_item.name
+        return None

@@ -22,6 +22,9 @@ export type TPage = {
   workspace: string | undefined;
   logo_props: TLogoProps | undefined;
   deleted_at: Date | undefined;
+  work_item_id?: string | null;
+  work_item_name?: string | null;
+  document_type?: string | null;
 } & TPageExtended;
 
 // page filters
@@ -36,6 +39,8 @@ export type TPageFilterProps = {
   created_by?: string[] | null;
   favorites?: boolean;
   labels?: string[] | null;
+  work_item?: string[] | null;
+  document_type?: string[] | null;
 };
 
 export type TPageFilters = {

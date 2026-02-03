@@ -156,13 +156,11 @@ export class ProjectPageStore implements IProjectPageStore {
 
   /**
    * @description get the current project filtered page ids based on the pageType
-   * @param {TPageNavigationTabs} pageType
    */
   getCurrentProjectFilteredPageIdsByTab = computedFn((pageType: TPageNavigationTabs) => {
     const { projectId } = this.store.router;
     if (!projectId) return undefined;
 
-    // helps to filter pages based on the pageType
     const pagesByType = filterPagesByPageType(pageType, Object.values(this?.data || {}));
     let filteredPages = pagesByType.filter(
       (p) =>
@@ -172,9 +170,7 @@ export class ProjectPageStore implements IProjectPageStore {
     );
     filteredPages = orderPages(filteredPages, this.filters.sortKey, this.filters.sortBy);
 
-    const pages = (filteredPages.map((page) => page.id) as string[]) || undefined;
-
-    return pages ?? undefined;
+    return (filteredPages.map((page) => page.id) as string[]) ?? undefined;
   });
 
   /**
@@ -194,7 +190,7 @@ export class ProjectPageStore implements IProjectPageStore {
    */
   clearAllFilters = () =>
     runInAction(() => {
-      set(this.filters, ["filters"], {});
+      this.filters.filters = {};
     });
 
   /**
@@ -322,7 +318,7 @@ export class ProjectPageStore implements IProjectPageStore {
    * @description delete a page
    * @param {string} pageId
    */
-  removePage = async ({ pageId, shouldSync = true }: { pageId: string; shouldSync?: boolean }) => {
+  removePage = async ({ pageId, shouldSync: _shouldSync = true }: { pageId: string; shouldSync?: boolean }) => {
     try {
       const { workspaceSlug, projectId } = this.store.router;
       if (!workspaceSlug || !projectId || !pageId) return undefined;

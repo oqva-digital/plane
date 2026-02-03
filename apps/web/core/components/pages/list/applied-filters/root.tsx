@@ -7,19 +7,25 @@ import { replaceUnderscoreIfSnakeCase } from "@plane/utils";
 // components
 import { AppliedDateFilters } from "@/components/common/applied-filters/date";
 import { AppliedMembersFilters } from "@/components/common/applied-filters/members";
+import { AppliedValuesFilters } from "@/components/common/applied-filters/values";
+
+type WorkItemOption = { id: string; name: string };
 
 type Props = {
   appliedFilters: TPageFilterProps;
   handleClearAllFilters: () => void;
   handleRemoveFilter: (key: keyof TPageFilterProps, value: string | null) => void;
   alwaysAllowEditing?: boolean;
+  workItems?: WorkItemOption[];
 };
 
 const MEMBERS_FILTERS = ["created_by"];
 const DATE_FILTERS = ["created_at"];
+const WORK_ITEM_FILTERS = ["work_item"];
+const DOCUMENT_TYPE_FILTERS = ["document_type"];
 
 export function PageAppliedFiltersList(props: Props) {
-  const { appliedFilters, handleClearAllFilters, handleRemoveFilter, alwaysAllowEditing } = props;
+  const { appliedFilters, handleClearAllFilters, handleRemoveFilter, alwaysAllowEditing, workItems = [] } = props;
   const { t } = useTranslation();
 
   if (!appliedFilters) return null;
@@ -48,6 +54,21 @@ export function PageAppliedFiltersList(props: Props) {
               )}
               {MEMBERS_FILTERS.includes(filterKey) && (
                 <AppliedMembersFilters
+                  editable={isEditingAllowed}
+                  handleRemove={(val) => handleRemoveFilter(filterKey, val)}
+                  values={Array.isArray(value) ? value : []}
+                />
+              )}
+              {WORK_ITEM_FILTERS.includes(filterKey) && (
+                <AppliedValuesFilters
+                  editable={isEditingAllowed}
+                  handleRemove={(val) => handleRemoveFilter(filterKey, val)}
+                  values={Array.isArray(value) ? value : []}
+                  getLabel={(id) => workItems.find((w) => w.id === id)?.name ?? id}
+                />
+              )}
+              {DOCUMENT_TYPE_FILTERS.includes(filterKey) && (
+                <AppliedValuesFilters
                   editable={isEditingAllowed}
                   handleRemove={(val) => handleRemoveFilter(filterKey, val)}
                   values={Array.isArray(value) ? value : []}
