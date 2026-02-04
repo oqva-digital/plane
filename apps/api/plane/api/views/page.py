@@ -1,5 +1,6 @@
 # Django imports
 from django.db.models import Exists, OuterRef
+from django.utils import timezone
 
 # Third party imports
 from rest_framework import status
@@ -11,6 +12,7 @@ from plane.api.serializers import (
     PageCreateSerializer,
 )
 from plane.app.permissions import ProjectEntityPermission
+from plane.app.views.page.base import unarchive_archive_page_and_descendants
 from plane.db.models import (
     Page,
     Project,
@@ -261,3 +263,121 @@ class PageDetailAPIEndpoint(BaseAPIView):
         ).delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PageArchiveUnarchiveAPIEndpoint(BaseAPIView):
+    """Page Archive and Unarchive Endpoint"""
+
+    permission_classes = [ProjectEntityPermission]
+    use_read_replica = True
+
+    def post(self, request, slug, project_id, pk):
+        """Archive page
+
+        Mark the page and all its sub-pages as archived.
+        Only the owner or project admin can archive the page.
+        """
+        page = Page.objects.get(
+            pk=pk,
+            workspace__slug=slug,
+            project_pages__project_id=project_id,
+            project_pages__deleted_at__isnull=True,
+        )
+        is_admin = ProjectMember.objects.filter(
+            project_id=project_id,
+            member=request.user,
+            is_active=True,
+            role__lte=15,
+        ).exists()
+        is_owner = request.user.id == page.owned_by_id
+        if not is_owner and not is_admin:
+            return Response(
+                {"error": "Only the owner or admin can archive the page"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        UserFavorite.objects.filter(
+            entity_type="page",
+            entity_identifier=pk,
+            project_id=project_id,
+            workspace__slug=slug,
+        ).delete()
+        archived_at = timezone.now()
+        unarchive_archive_page_and_descendants(str(pk), archived_at)
+        return Response(
+            {"archived_at": str(archived_at)},
+            status=status.HTTP_200_OK,
+        )
+
+    def delete(self, request, slug, project_id, pk):
+        """Unarchive page
+
+        Restore the page and all its sub-pages to active status.
+        Only the owner or project admin can unarchive the page.
+        """
+        page = Page.objects.get(
+            pk=pk,
+            workspace__slug=slug,
+            project_pages__project_id=project_id,
+            project_pages__deleted_at__isnull=True,
+        )
+        is_admin = ProjectMember.objects.filter(
+            project_id=project_id,
+            member=request.user,
+            is_active=True,
+            role__lte=15,
+        ).exists()
+        is_owner = request.user.id == page.owned_by_id
+        if not is_owner and not is_admin:
+            return Response(
+                {"error": "Only the owner or admin can un archive the page"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if page.parent_id and page.parent.archived_at:
+            page.parent = None
+            page.save(update_fields=["parent"])
+        unarchive_archive_page_and_descendants(str(pk), None)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PageArchivedListAPIEndpoint(BaseAPIView):
+    """Archived Pages List Endpoint"""
+
+    permission_classes = [ProjectEntityPermission]
+    serializer_class = PageSerializer
+    use_read_replica = True
+
+    def get_queryset(self):
+        return (
+            Page.objects.filter(
+                project_pages__project_id=self.kwargs.get("project_id"),
+                project_pages__deleted_at__isnull=True,
+            )
+            .filter(workspace__slug=self.kwargs.get("slug"))
+            .filter(archived_at__isnull=False)
+            .select_related("workspace", "owned_by", "parent", "work_item")
+            .prefetch_related("labels", "projects")
+            .annotate(
+                is_favorite=Exists(
+                    UserFavorite.objects.filter(
+                        entity_type="page",
+                        entity_identifier=OuterRef("pk"),
+                        user=self.request.user,
+                        project_id=self.kwargs.get("project_id"),
+                    )
+                )
+            )
+            .order_by("-created_at")
+        )
+
+    def get(self, request, slug, project_id):
+        """List archived pages
+
+        Retrieve all archived pages in a project (paginated).
+        """
+        return self.paginate(
+            request=request,
+            queryset=self.get_queryset(),
+            on_results=lambda pages: PageSerializer(
+                pages, many=True, fields=self.fields, expand=self.expand
+            ).data,
+        )

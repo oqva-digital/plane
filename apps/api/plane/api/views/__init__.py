@@ -67,4 +67,6 @@ from .sticky import StickyViewSet
 from .page import (
     PageListCreateAPIEndpoint,
     PageDetailAPIEndpoint,
+    PageArchiveUnarchiveAPIEndpoint,
+    PageArchivedListAPIEndpoint,
 )
