@@ -639,7 +639,7 @@ class BulkArchivePagesEndpoint(BaseAPIView):
     def post(self, request, slug, project_id):
         page_ids = request.data.get("page_ids", [])
 
-        if not len(page_ids):
+        if not page_ids:
             return Response({"error": "Page IDs are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         pages = Page.objects.filter(
@@ -656,19 +656,21 @@ class BulkArchivePagesEndpoint(BaseAPIView):
                 ProjectMember.objects.filter(
                     project_id=project_id, member=request.user, is_active=True, role__lte=15
                 ).exists()
-                or request.user.id == page.owned_by_id
+                and request.user.id != page.owned_by_id
             ):
-                # Remove from favorites
-                UserFavorite.objects.filter(
-                    entity_type="page",
-                    entity_identifier=page.id,
-                    project_id=project_id,
-                    workspace__slug=slug,
-                ).delete()
+                continue  # Skip pages user doesn't have permission for
 
-                # Archive page and descendants
-                unarchive_archive_page_and_descendants(page.id, datetime.now())
-                archived_count += 1
+            # Remove from favorites
+            UserFavorite.objects.filter(
+                entity_type="page",
+                entity_identifier=page.id,
+                project_id=project_id,
+                workspace__slug=slug,
+            ).delete()
+
+            # Archive page and descendants
+            unarchive_archive_page_and_descendants(page.id, datetime.now())
+            archived_count += 1
 
         return Response({"archived_at": str(datetime.now()), "count": archived_count}, status=status.HTTP_200_OK)
 
@@ -680,7 +682,7 @@ class BulkDeletePagesEndpoint(BaseAPIView):
     def delete(self, request, slug, project_id):
         page_ids = request.data.get("page_ids", [])
 
-        if not len(page_ids):
+        if not page_ids:
             return Response({"error": "Page IDs are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         pages = Page.objects.filter(
@@ -700,7 +702,7 @@ class BulkDeletePagesEndpoint(BaseAPIView):
             if page.owned_by_id == request.user.id or ProjectMember.objects.filter(
                 workspace__slug=slug,
                 member=request.user,
-                role=20,
+                role__gte=ROLE.ADMIN.value,
                 project_id=project_id,
                 is_active=True,
             ).exists():

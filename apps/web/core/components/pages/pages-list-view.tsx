@@ -53,7 +53,6 @@ export const PagesListView = observer(function PagesListView(props: TPageView) {
           storeType={storeType}
           workspaceSlug={workspaceSlug}
           enableSelection={enableSelection}
-          onToggleSelection={() => {}}
         />
       )}
       <PagesListMainContent pageType={pageType} storeType={storeType}>

@@ -27,11 +27,10 @@ type Props = {
   storeType: EPageStoreType;
   workspaceSlug: string;
   enableSelection?: boolean;
-  onToggleSelection?: () => void;
 };
 
 export const PagesListHeaderRoot = observer(function PagesListHeaderRoot(props: Props) {
-  const { pageType, projectId, storeType, workspaceSlug, enableSelection, onToggleSelection } = props;
+  const { pageType, projectId, storeType, workspaceSlug, enableSelection } = props;
   const { t } = useTranslation();
   // store hooks
   const pageStore = usePageStore(storeType);

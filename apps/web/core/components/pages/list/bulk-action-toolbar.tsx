@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { observer } from "mobx-react";
 import { Archive, Trash2 } from "lucide-react";
-import { Button } from "@plane/ui";
+import { Button, TOAST_TYPE, setToast } from "@plane/ui";
 // hooks
 import type { EPageStoreType } from "@/plane-web/hooks/store";
 import { usePageStore } from "@/plane-web/hooks/store";
@@ -30,8 +30,18 @@ export const BulkActionToolbar = observer(function BulkActionToolbar(props: TBul
       setIsArchiving(true);
       const pageIdsArray = Array.from(selectedPageIds);
       await bulkArchivePages(pageIdsArray);
+      setToast({
+        type: TOAST_TYPE.SUCCESS,
+        title: "Success!",
+        message: `${pageIdsArray.length} ${pageIdsArray.length === 1 ? "page" : "pages"} archived successfully.`,
+      });
     } catch (error) {
       console.error("Failed to archive pages:", error);
+      setToast({
+        type: TOAST_TYPE.ERROR,
+        title: "Error!",
+        message: "Failed to archive pages. Please try again.",
+      });
     } finally {
       setIsArchiving(false);
     }
