@@ -113,3 +113,7 @@ build/
 .react-router/
 temp/
 scripts/
+
+# Code review and revision artifacts
+*review*.json
+*revision*.json
