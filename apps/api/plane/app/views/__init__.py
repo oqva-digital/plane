@@ -168,6 +168,8 @@ from .page.base import (
     PageFavoriteViewSet,
     PagesDescriptionViewSet,
     PageDuplicateEndpoint,
+    BulkArchivePagesEndpoint,
+    BulkDeletePagesEndpoint,
 )
 from .page.version import PageVersionEndpoint
 

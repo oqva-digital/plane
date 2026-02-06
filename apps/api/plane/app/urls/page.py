@@ -7,6 +7,8 @@ from plane.app.views import (
     PagesDescriptionViewSet,
     PageVersionEndpoint,
     PageDuplicateEndpoint,
+    BulkArchivePagesEndpoint,
+    BulkDeletePagesEndpoint,
 )
 
 urlpatterns = [
@@ -68,5 +70,16 @@ urlpatterns = [
         "workspaces/<str:slug>/projects/<uuid:project_id>/pages/<uuid:page_id>/duplicate/",
         PageDuplicateEndpoint.as_view(),
         name="page-duplicate",
+    ),
+    # bulk operations
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/bulk-archive-pages/",
+        BulkArchivePagesEndpoint.as_view(),
+        name="bulk-archive-pages",
+    ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/bulk-delete-pages/",
+        BulkDeletePagesEndpoint.as_view(),
+        name="bulk-delete-pages",
     ),
 ]

@@ -16,10 +16,13 @@ import { usePage } from "@/plane-web/hooks/store";
 type TPageListBlock = {
   pageId: string;
   storeType: EPageStoreType;
+  enableSelection?: boolean;
+  isSelected?: boolean;
+  onToggleSelection?: () => void;
 };
 
 export const PageListBlock = observer(function PageListBlock(props: TPageListBlock) {
-  const { pageId, storeType } = props;
+  const { pageId, storeType, enableSelection, isSelected, onToggleSelection } = props;
   // refs
   const parentRef = useRef(null);
   // hooks
@@ -37,6 +40,18 @@ export const PageListBlock = observer(function PageListBlock(props: TPageListBlo
     <ListItem
       prependTitleElement={
         <>
+          {enableSelection && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={(e) => {
+                e.stopPropagation();
+                onToggleSelection?.();
+              }}
+              className="h-4 w-4 rounded border-border-subtle"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
           {logo_props?.in_use ? (
             <Logo logo={logo_props} size={16} type="lucide" />
           ) : (
@@ -45,7 +60,7 @@ export const PageListBlock = observer(function PageListBlock(props: TPageListBlo
         </>
       }
       title={getPageName(name)}
-      itemLink={getRedirectionLink()}
+      itemLink={!enableSelection ? getRedirectionLink() : undefined}
       actionableItems={<BlockItemAction page={page} parentRef={parentRef} storeType={storeType} />}
       isMobile={isMobile}
       parentRef={parentRef}

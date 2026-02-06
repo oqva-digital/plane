@@ -74,8 +74,9 @@ function ProjectPagesPage({ params }: Route.ComponentProps) {
         projectId={projectId}
         storeType={EPageStoreType.PROJECT}
         workspaceSlug={workspaceSlug}
+        enableSelection={true}
       >
-        <PagesListRoot pageType={pageType} storeType={EPageStoreType.PROJECT} />
+        <PagesListRoot pageType={pageType} storeType={EPageStoreType.PROJECT} enableSelection={true} />
       </PagesListView>
     </>
   );

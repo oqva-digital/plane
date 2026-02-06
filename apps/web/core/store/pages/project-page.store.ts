@@ -34,6 +34,7 @@ export interface IProjectPageStore {
   data: Record<string, TProjectPage>; // pageId => Page
   error: TError | undefined;
   filters: TPageFilters;
+  selectedPageIds: Set<string>;
   // computed
   isAnyPageAvailable: boolean;
   canCurrentUserCreatePage: boolean;
@@ -44,6 +45,11 @@ export interface IProjectPageStore {
   getPageById: (pageId: string) => TProjectPage | undefined;
   updateFilters: <T extends keyof TPageFilters>(filterKey: T, filterValue: TPageFilters[T]) => void;
   clearAllFilters: () => void;
+  // selection actions
+  togglePageSelection: (pageId: string) => void;
+  selectAllPages: (pageIds: string[]) => void;
+  clearSelection: () => void;
+  isPageSelected: (pageId: string) => boolean;
   // actions
   fetchPagesList: (
     workspaceSlug: string,
@@ -59,6 +65,8 @@ export interface IProjectPageStore {
   createPage: (pageData: Partial<TPage>) => Promise<TPage | undefined>;
   removePage: (params: { pageId: string; shouldSync?: boolean }) => Promise<void>;
   movePage: (workspaceSlug: string, projectId: string, pageId: string, newProjectId: string) => Promise<void>;
+  bulkArchivePages: (pageIds: string[]) => Promise<void>;
+  bulkDeletePages: (pageIds: string[]) => Promise<void>;
 }
 
 export class ProjectPageStore implements IProjectPageStore {
@@ -71,6 +79,7 @@ export class ProjectPageStore implements IProjectPageStore {
     sortKey: "updated_at",
     sortBy: "desc",
   };
+  selectedPageIds: Set<string> = new Set();
   // service
   service: ProjectPageService;
   rootStore: CoreRootStore;
@@ -82,18 +91,25 @@ export class ProjectPageStore implements IProjectPageStore {
       data: observable,
       error: observable,
       filters: observable,
+      selectedPageIds: observable,
       // computed
       isAnyPageAvailable: computed,
       canCurrentUserCreatePage: computed,
       // helper actions
       updateFilters: action,
       clearAllFilters: action,
+      // selection actions
+      togglePageSelection: action,
+      selectAllPages: action,
+      clearSelection: action,
       // actions
       fetchPagesList: action,
       fetchPageDetails: action,
       createPage: action,
       removePage: action,
       movePage: action,
+      bulkArchivePages: action,
+      bulkDeletePages: action,
     });
     this.rootStore = store;
     // service
@@ -104,6 +120,7 @@ export class ProjectPageStore implements IProjectPageStore {
       (projectId) => {
         if (!projectId) return;
         this.filters.searchQuery = "";
+        this.selectedPageIds.clear();
       }
     );
   }
@@ -355,6 +372,116 @@ export class ProjectPageStore implements IProjectPageStore {
       });
     } catch (error) {
       console.error("Unable to move page", error);
+      throw error;
+    }
+  };
+
+  /**
+   * @description toggle page selection
+   * @param {string} pageId
+   */
+  togglePageSelection = (pageId: string) => {
+    if (this.selectedPageIds.has(pageId)) {
+      this.selectedPageIds.delete(pageId);
+    } else {
+      this.selectedPageIds.add(pageId);
+    }
+  };
+
+  /**
+   * @description select all pages
+   * @param {string[]} pageIds
+   */
+  selectAllPages = (pageIds: string[]) => {
+    this.selectedPageIds.clear();
+    pageIds.forEach((id) => this.selectedPageIds.add(id));
+  };
+
+  /**
+   * @description clear all selected pages
+   */
+  clearSelection = () => {
+    this.selectedPageIds.clear();
+  };
+
+  /**
+   * @description check if a page is selected
+   * @param {string} pageId
+   */
+  isPageSelected = computedFn((pageId: string) => this.selectedPageIds.has(pageId));
+
+  /**
+   * @description bulk archive pages
+   * @param {string[]} pageIds
+   */
+  bulkArchivePages = async (pageIds: string[]) => {
+    try {
+      const { workspaceSlug, projectId } = this.store.router;
+      if (!workspaceSlug || !projectId) return undefined;
+
+      runInAction(() => {
+        this.loader = "mutation-loader";
+        this.error = undefined;
+      });
+
+      await this.service.bulkArchive(workspaceSlug, projectId, pageIds);
+
+      runInAction(() => {
+        // Update the archived_at field for all archived pages
+        pageIds.forEach((pageId) => {
+          const page = this.data[pageId];
+          if (page) {
+            page.mutateProperties({ archived_at: new Date().toISOString() } as Partial<TPage>, false);
+          }
+        });
+        this.selectedPageIds.clear();
+        this.loader = undefined;
+      });
+    } catch (error) {
+      runInAction(() => {
+        this.loader = undefined;
+        this.error = {
+          title: "Failed",
+          description: "Failed to archive pages, Please try again later.",
+        };
+      });
+      throw error;
+    }
+  };
+
+  /**
+   * @description bulk delete pages
+   * @param {string[]} pageIds
+   */
+  bulkDeletePages = async (pageIds: string[]) => {
+    try {
+      const { workspaceSlug, projectId } = this.store.router;
+      if (!workspaceSlug || !projectId) return undefined;
+
+      runInAction(() => {
+        this.loader = "mutation-loader";
+        this.error = undefined;
+      });
+
+      await this.service.bulkDelete(workspaceSlug, projectId, pageIds);
+
+      runInAction(() => {
+        // Remove deleted pages from the store
+        pageIds.forEach((pageId) => {
+          unset(this.data, [pageId]);
+          if (this.rootStore.favorite.entityMap[pageId]) this.rootStore.favorite.removeFavoriteFromStore(pageId);
+        });
+        this.selectedPageIds.clear();
+        this.loader = undefined;
+      });
+    } catch (error) {
+      runInAction(() => {
+        this.loader = undefined;
+        this.error = {
+          title: "Failed",
+          description: "Failed to delete pages, Please try again later.",
+        };
+      });
       throw error;
     }
   };

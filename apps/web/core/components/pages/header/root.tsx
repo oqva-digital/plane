@@ -1,10 +1,10 @@
 import { useCallback } from "react";
 import { observer } from "mobx-react";
-import { ListFilter } from "lucide-react";
+import { ListFilter, CheckSquare } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import type { TPageFilterProps, TPageNavigationTabs } from "@plane/types";
-import { Header, EHeaderVariant } from "@plane/ui";
+import { Header, EHeaderVariant, Button } from "@plane/ui";
 import { calculateTotalFilters } from "@plane/utils";
 // components
 import { FiltersDropdown } from "@/components/issues/issue-layouts/filters";
@@ -26,14 +26,27 @@ type Props = {
   projectId: string;
   storeType: EPageStoreType;
   workspaceSlug: string;
+  enableSelection?: boolean;
+  onToggleSelection?: () => void;
 };
 
 export const PagesListHeaderRoot = observer(function PagesListHeaderRoot(props: Props) {
-  const { pageType, projectId, storeType, workspaceSlug } = props;
+  const { pageType, projectId, storeType, workspaceSlug, enableSelection, onToggleSelection } = props;
   const { t } = useTranslation();
   // store hooks
   const pageStore = usePageStore(storeType);
-  const { filters, updateFilters, clearAllFilters } = pageStore;
+  const { filters, updateFilters, clearAllFilters, selectedPageIds, getCurrentProjectFilteredPageIdsByTab, selectAllPages, clearSelection } = pageStore;
+
+  const filteredPageIds = getCurrentProjectFilteredPageIdsByTab(pageType);
+  const allSelected = filteredPageIds && selectedPageIds.size > 0 && filteredPageIds.every(id => selectedPageIds.has(id));
+
+  const handleSelectAll = () => {
+    if (allSelected) {
+      clearSelection();
+    } else if (filteredPageIds) {
+      selectAllPages(filteredPageIds);
+    }
+  };
   const {
     workspace: { workspaceMemberIds },
   } = useMember();
@@ -84,6 +97,19 @@ export const PagesListHeaderRoot = observer(function PagesListHeaderRoot(props: 
           <PageTabNavigation workspaceSlug={workspaceSlug} projectId={projectId} pageType={pageType} />
         </Header.LeftItem>
         <Header.RightItem className="items-center">
+          {enableSelection && (
+            <>
+              <Button
+                variant="neutral-primary"
+                size="sm"
+                onClick={handleSelectAll}
+                prependIcon={<CheckSquare className="h-4 w-4" />}
+              >
+                {allSelected ? "Deselect All" : "Select All"}
+              </Button>
+              <div className="h-4 w-px bg-border-subtle" />
+            </>
+          )}
           <PageSearchInput
             searchQuery={filters.searchQuery}
             updateSearchQuery={(val) => updateFilters("searchQuery", val)}

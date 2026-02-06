@@ -161,4 +161,35 @@ export class ProjectPageService extends APIService {
       .then((response: AxiosResponse<void>) => response.data)
       .catch(throwResponseError);
   }
+
+  async bulkArchive(
+    workspaceSlug: string,
+    projectId: string,
+    pageIds: string[]
+  ): Promise<{
+    archived_at: string;
+    count: number;
+  }> {
+    return this.post(`/api/workspaces/${workspaceSlug}/projects/${projectId}/bulk-archive-pages/`, {
+      page_ids: pageIds,
+    })
+      .then((response: AxiosResponse<{ archived_at: string; count: number }>) => response.data)
+      .catch(throwResponseError);
+  }
+
+  async bulkDelete(
+    workspaceSlug: string,
+    projectId: string,
+    pageIds: string[]
+  ): Promise<{
+    message: string;
+  }> {
+    return this.delete(`/api/workspaces/${workspaceSlug}/projects/${projectId}/bulk-delete-pages/`, {
+      data: {
+        page_ids: pageIds,
+      },
+    })
+      .then((response: AxiosResponse<{ message: string }>) => response.data)
+      .catch(throwResponseError);
+  }
 }

@@ -12,19 +12,27 @@ import { PageListBlock } from "./block";
 type TPagesListRoot = {
   pageType: TPageNavigationTabs;
   storeType: EPageStoreType;
+  enableSelection?: boolean;
 };
 
 export const PagesListRoot = observer(function PagesListRoot(props: TPagesListRoot) {
-  const { pageType, storeType } = props;
+  const { pageType, storeType, enableSelection } = props;
   // store hooks
-  const { getCurrentProjectFilteredPageIdsByTab } = usePageStore(storeType);
+  const { getCurrentProjectFilteredPageIdsByTab, togglePageSelection, isPageSelected } = usePageStore(storeType);
   const filteredPageIds = getCurrentProjectFilteredPageIdsByTab(pageType);
 
   if (!filteredPageIds) return <></>;
   return (
     <ListLayout>
       {filteredPageIds.map((pageId) => (
-        <PageListBlock key={pageId} pageId={pageId} storeType={storeType} />
+        <PageListBlock
+          key={pageId}
+          pageId={pageId}
+          storeType={storeType}
+          enableSelection={enableSelection}
+          isSelected={enableSelection ? isPageSelected(pageId) : false}
+          onToggleSelection={() => togglePageSelection(pageId)}
+        />
       ))}
     </ListLayout>
   );
