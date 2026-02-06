@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 // plane imports
 import { EIssueGroupByToServerOptions, EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
-import type { TGroupedIssues } from "@plane/types";
+import type { TGroupedIssues, TLoader } from "@plane/types";
 import { EIssuesStoreType } from "@plane/types";
 // components
 import { MultipleSelectGroup, SelectionClearOnOutsideClick } from "@/components/core/multiple-select";
@@ -16,6 +16,7 @@ import { useMultipleSelectStore } from "@/hooks/store/use-multiple-select-store"
 import { useUserPermissions } from "@/hooks/store/user";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { useIssuesActions } from "@/hooks/use-issues-actions";
+import { useIssuesAutoRefresh } from "@/hooks/use-issues-auto-refresh";
 // plane web components
 import { IssueBulkOperationsRoot } from "@/plane-web/components/issues/bulk-operations";
 // types
@@ -106,6 +107,28 @@ export const BaseCalendarRoot = observer(function BaseCalendarRoot(props: IBaseC
     }
   }, [fetchIssues, storeType, startDate, endDate, layout, viewId]);
 
+  const refreshCalendarIssues = useCallback(() => {
+    if (!startDate || !endDate || !layout) return;
+    const store = issues as { lastLocalMutationAt?: number } | undefined;
+    if (store?.lastLocalMutationAt && Date.now() - store.lastLocalMutationAt < 20_000) return;
+    void fetchIssues(
+      "background-refresh" as TLoader,
+      {
+        canGroup: true,
+        perPageCount: layout === "month" ? 4 : 30,
+        before: endDate,
+        after: startDate,
+        groupedBy: EIssueGroupByToServerOptions["target_date"],
+      },
+      viewId
+    );
+  }, [fetchIssues, issues, startDate, endDate, layout, viewId]);
+
+  useIssuesAutoRefresh({
+    refreshFn: refreshCalendarIssues,
+    enabled: !!startDate && !!endDate,
+  });
+
   const handleDragAndDrop = async (
     issueId: string | undefined,
     issueProjectId: string | undefined,
@@ -180,7 +203,6 @@ export const BaseCalendarRoot = observer(function BaseCalendarRoot(props: IBaseC
                     layout={displayFilters?.calendar?.layout}
                     showWeekends={displayFilters?.calendar?.show_weekends ?? false}
                     issueCalendarView={issueCalendarView}
-                    containerRef={containerRef}
                     selectionHelpers={helpers}
                     quickActions={({
                       issue,

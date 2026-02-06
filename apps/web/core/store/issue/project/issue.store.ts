@@ -76,8 +76,10 @@ export class ProjectIssues extends BaseIssuesStore implements IProjectIssues {
    * @param workspaceSlug
    * @param projectId
    */
-  fetchParentStats = async (workspaceSlug: string, projectId?: string) => {
-    projectId && this.rootIssueStore.rootStore.projectRoot.project.fetchProjectDetails(workspaceSlug, projectId);
+  fetchParentStats = (workspaceSlug: string, projectId?: string) => {
+    if (projectId) {
+      void this.rootIssueStore.rootStore.projectRoot.project.fetchProjectDetails(workspaceSlug, projectId);
+    }
   };
 
   /** */
@@ -99,10 +101,11 @@ export class ProjectIssues extends BaseIssuesStore implements IProjectIssues {
     isExistingPaginationOptions: boolean = false
   ) => {
     try {
-      // set loader and clear store
       runInAction(() => {
-        this.setLoader(loadType);
-        this.clear(!isExistingPaginationOptions); // clear while fetching from server.
+        if (loadType !== "background-refresh") {
+          this.setLoader(loadType);
+          this.clear(!isExistingPaginationOptions); // clear while fetching from server.
+        }
       });
 
       // get params from pagination options
@@ -116,8 +119,7 @@ export class ProjectIssues extends BaseIssuesStore implements IProjectIssues {
       this.onfetchIssues(response, options, workspaceSlug, projectId, undefined, !isExistingPaginationOptions);
       return response;
     } catch (error) {
-      // set loader to undefined if errored out
-      this.setLoader(undefined);
+      if (loadType !== "background-refresh") this.setLoader(undefined);
       throw error;
     }
   };
@@ -191,8 +193,8 @@ export class ProjectIssues extends BaseIssuesStore implements IProjectIssues {
   };
 
   // Using aliased names as they cannot be overridden in other stores
-  archiveBulkIssues = this.bulkArchiveIssues;
-  quickAddIssue = this.issueQuickAdd;
-  updateIssue = this.issueUpdate;
-  archiveIssue = this.issueArchive;
+  archiveBulkIssues = this.bulkArchiveIssues.bind(this);
+  quickAddIssue = this.issueQuickAdd.bind(this);
+  updateIssue = this.issueUpdate.bind(this);
+  archiveIssue = this.issueArchive.bind(this);
 }

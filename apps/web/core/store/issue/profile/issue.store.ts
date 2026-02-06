@@ -124,9 +124,11 @@ export class ProfileIssues extends BaseIssuesStore implements IProfileIssues {
     try {
       // set loader and clear store
       runInAction(() => {
-        this.setLoader(loadType);
+        if (loadType !== "background-refresh") {
+          this.setLoader(loadType);
+          this.clear(!isExistingPaginationOptions);
+        }
       });
-      this.clear(!isExistingPaginationOptions);
 
       // set ViewId
       this.setViewId(view);
@@ -153,8 +155,7 @@ export class ProfileIssues extends BaseIssuesStore implements IProfileIssues {
       this.onfetchIssues(response, options, workspaceSlug, undefined, undefined, !isExistingPaginationOptions);
       return response;
     } catch (error) {
-      // set loader to undefined if errored out
-      this.setLoader(undefined);
+      if (loadType !== "background-refresh") this.setLoader(undefined);
       throw error;
     }
   };
@@ -222,9 +223,9 @@ export class ProfileIssues extends BaseIssuesStore implements IProfileIssues {
   };
 
   // Using aliased names as they cannot be overridden in other stores
-  archiveBulkIssues = this.bulkArchiveIssues;
-  updateIssue = this.issueUpdate;
-  archiveIssue = this.issueArchive;
+  archiveBulkIssues = this.bulkArchiveIssues.bind(this);
+  updateIssue = this.issueUpdate.bind(this);
+  archiveIssue = this.issueArchive.bind(this);
 
   // Setting them as undefined as they can not performed on profile issues
   quickAddIssue = undefined;

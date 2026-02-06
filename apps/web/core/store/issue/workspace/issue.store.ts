@@ -96,11 +96,12 @@ export class WorkspaceIssues extends BaseIssuesStore implements IWorkspaceIssues
     isExistingPaginationOptions: boolean = false
   ) => {
     try {
-      // set loader and clear store
-      runInAction(() => {
-        this.setLoader(loadType);
-      });
-      this.clear(!isExistingPaginationOptions);
+      if (loadType !== "background-refresh") {
+        runInAction(() => {
+          this.setLoader(loadType);
+        });
+        this.clear(!isExistingPaginationOptions);
+      }
 
       // get params from pagination options
       const params = this.issueFilterStore?.getFilterParams(options, viewId, undefined, undefined, undefined);
@@ -113,8 +114,7 @@ export class WorkspaceIssues extends BaseIssuesStore implements IWorkspaceIssues
       this.onfetchIssues(response, options, workspaceSlug, undefined, undefined, !isExistingPaginationOptions);
       return response;
     } catch (error) {
-      // set loader to undefined if errored out
-      this.setLoader(undefined);
+      if (loadType !== "background-refresh") this.setLoader(undefined);
       throw error;
     }
   };
@@ -172,9 +172,9 @@ export class WorkspaceIssues extends BaseIssuesStore implements IWorkspaceIssues
   };
 
   // Using aliased names as they cannot be overridden in other stores
-  archiveBulkIssues = this.bulkArchiveIssues;
-  updateIssue = this.issueUpdate;
-  archiveIssue = this.issueArchive;
+  archiveBulkIssues = this.bulkArchiveIssues.bind(this);
+  updateIssue = this.issueUpdate.bind(this);
+  archiveIssue = this.issueArchive.bind(this);
 
   // Setting them as undefined as they can not performed on workspace issues
   quickAddIssue = undefined;

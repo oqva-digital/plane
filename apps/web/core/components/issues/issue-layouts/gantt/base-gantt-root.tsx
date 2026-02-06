@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 // plane imports
@@ -18,6 +18,7 @@ import { useUserPermissions } from "@/hooks/store/user";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { useIssuesActions } from "@/hooks/use-issues-actions";
 import { useTimeLineChart } from "@/hooks/use-timeline-chart";
+import { useIssuesAutoRefresh } from "@/hooks/use-issues-auto-refresh";
 // plane web hooks
 import { useBulkOperationStatus } from "@/plane-web/hooks/use-bulk-operation-status";
 
@@ -59,12 +60,23 @@ export const BaseGanttRoot = observer(function BaseGanttRoot(props: IBaseGanttRo
   targetDate.setDate(targetDate.getDate() + 1);
 
   useEffect(() => {
-    fetchIssues("init-loader", { canGroup: false, perPageCount: 100 }, viewId);
+    void fetchIssues("init-loader", { canGroup: false, perPageCount: 100 }, viewId);
   }, [fetchIssues, storeType, viewId]);
+
+  const refreshGanttIssues = useCallback(() => {
+    const store = issues as { lastLocalMutationAt?: number };
+    if (store?.lastLocalMutationAt && Date.now() - store.lastLocalMutationAt < 20_000) return;
+    void fetchIssues("background-refresh", { canGroup: false, perPageCount: 100 }, viewId);
+  }, [fetchIssues, issues, viewId]);
+
+  useIssuesAutoRefresh({
+    refreshFn: refreshGanttIssues,
+    enabled: true,
+  });
 
   useEffect(() => {
     initGantt();
-  }, []);
+  }, [initGantt]);
 
   const issuesIds = (issues.groupedIssueIds?.[ALL_ISSUES] as string[]) ?? [];
   const nextPageResults = issues.getPaginationData(undefined, undefined)?.nextPageResults;
@@ -72,16 +84,17 @@ export const BaseGanttRoot = observer(function BaseGanttRoot(props: IBaseGanttRo
   const { enableIssueCreation } = issues?.viewFlags || {};
 
   const loadMoreIssues = useCallback(() => {
-    fetchNextIssues();
+    void fetchNextIssues();
   }, [fetchNextIssues]);
 
   const updateIssueBlockStructure = async (issue: TIssue, data: IBlockUpdateData) => {
-    if (!workspaceSlug) return;
+    if (!workspaceSlug || !updateIssue) return;
 
-    const payload: any = { ...data };
-    if (data.sort_order) payload.sort_order = data.sort_order.newSortOrder;
-
-    updateIssue && (await updateIssue(issue.project_id, issue.id, payload));
+    const payload: Partial<TIssue> = { ...data };
+    if (data.sort_order) {
+      payload.sort_order = data.sort_order.newSortOrder;
+    }
+    await updateIssue(issue.project_id, issue.id, payload);
   };
 
   const isAllowed = allowPermissions([EUserPermissions.ADMIN, EUserPermissions.MEMBER], EUserPermissionsLevel.PROJECT);
@@ -100,7 +113,7 @@ export const BaseGanttRoot = observer(function BaseGanttRoot(props: IBaseGanttRo
           message: "Error while updating work item dates, Please try again Later",
         });
       }),
-    [issues, projectId, workspaceSlug]
+    [issues, projectId, t, workspaceSlug]
   );
 
   const quickAdd =
@@ -127,7 +140,9 @@ export const BaseGanttRoot = observer(function BaseGanttRoot(props: IBaseGanttRo
             title={isEpic ? t("epic.label", { count: 2 }) : t("issue.label", { count: 2 })}
             loaderTitle={isEpic ? t("epic.label", { count: 2 }) : t("issue.label", { count: 2 })}
             blockIds={issuesIds}
-            blockUpdateHandler={updateIssueBlockStructure}
+            blockUpdateHandler={(issue: TIssue, data: IBlockUpdateData) => {
+              void updateIssueBlockStructure(issue, data);
+            }}
             blockToRender={(data: TIssue) => <IssueGanttBlock issueId={data.id} isEpic={isEpic} />}
             sidebarToRender={(props) => <IssueGanttSidebar {...props} showAllBlocks isEpic={isEpic} />}
             enableBlockLeftResize={isAllowed}

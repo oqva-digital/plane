@@ -70,8 +70,10 @@ export class ArchivedIssues extends BaseIssuesStore implements IArchivedIssues {
    * @param workspaceSlug
    * @param projectId
    */
-  fetchParentStats = async (workspaceSlug: string, projectId?: string) => {
-    projectId && this.rootIssueStore.rootStore.projectRoot.project.fetchProjectDetails(workspaceSlug, projectId);
+  fetchParentStats = (workspaceSlug: string, projectId?: string) => {
+    if (projectId) {
+      void this.rootIssueStore.rootStore.projectRoot.project.fetchProjectDetails(workspaceSlug, projectId);
+    }
   };
 
   /** */
@@ -93,11 +95,12 @@ export class ArchivedIssues extends BaseIssuesStore implements IArchivedIssues {
     isExistingPaginationOptions: boolean = false
   ) => {
     try {
-      // set loader and clear store
       runInAction(() => {
-        this.setLoader(loadType);
+        if (loadType !== "background-refresh") {
+          this.setLoader(loadType);
+          this.clear(!isExistingPaginationOptions);
+        }
       });
-      this.clear(!isExistingPaginationOptions);
 
       // get params from pagination options
       const params = this.issueFilterStore?.getFilterParams(options, projectId, undefined, undefined, undefined);
@@ -110,8 +113,7 @@ export class ArchivedIssues extends BaseIssuesStore implements IArchivedIssues {
       this.onfetchIssues(response, options, workspaceSlug, projectId, undefined, !isExistingPaginationOptions);
       return response;
     } catch (error) {
-      // set loader to undefined if errored out
-      this.setLoader(undefined);
+      if (loadType !== "background-refresh") this.setLoader(undefined);
       throw error;
     }
   };

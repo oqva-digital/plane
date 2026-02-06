@@ -19,6 +19,7 @@ import { useUserPermissions } from "@/hooks/store/user";
 import { useGroupIssuesDragNDrop } from "@/hooks/use-group-dragndrop";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { useIssuesActions } from "@/hooks/use-issues-actions";
+import { useIssuesAutoRefresh } from "@/hooks/use-issues-auto-refresh";
 // plane web components
 import { IssueBulkOperationsRoot } from "@/plane-web/components/issues/bulk-operations";
 // store
@@ -98,6 +99,53 @@ export const BaseKanBanRoot = observer(function BaseKanBanRoot(props: IBaseKanBa
   useEffect(() => {
     void fetchIssues("init-loader", { canGroup: true, perPageCount: sub_group_by ? 10 : 30 }, viewId);
   }, [fetchIssues, storeType, group_by, sub_group_by, viewId]);
+
+  const refreshKanbanIssues = useCallback(() => {
+    if (!workspaceSlug || !projectId || !issues) return;
+
+    const store = issues as {
+      lastLocalMutationAt?: number;
+      fetchIssuesWithExistingPagination?: (
+        ws: string,
+        proj: string,
+        loadType: string,
+        id?: string
+      ) => void | Promise<void>;
+      cycleId?: string;
+      moduleId?: string;
+    };
+    if (store.lastLocalMutationAt && Date.now() - store.lastLocalMutationAt < 20_000) return;
+
+    const fetchWithPagination = store.fetchIssuesWithExistingPagination;
+    if (typeof fetchWithPagination === "function") {
+      const ws = workspaceSlug.toString();
+      const proj = projectId.toString();
+
+      // Ciclo
+      if (store.cycleId) {
+        void fetchWithPagination(ws, proj, "background-refresh", store.cycleId);
+        return;
+      }
+
+      // Módulo
+      if (store.moduleId) {
+        void fetchWithPagination(ws, proj, "background-refresh", store.moduleId);
+        return;
+      }
+
+      // Projeto / perfil / equipe / etc. (sem id extra)
+      void fetchWithPagination(ws, proj, "background-refresh");
+      return;
+    }
+
+    // Fallback: comportamento antigo
+    void fetchIssues("background-refresh", { canGroup: true, perPageCount: sub_group_by ? 10 : 30 }, viewId);
+  }, [workspaceSlug, projectId, issues, fetchIssues, sub_group_by, viewId]);
+
+  useIssuesAutoRefresh({
+    refreshFn: refreshKanbanIssues,
+    enabled: true,
+  });
 
   const fetchMoreIssues = useCallback(
     (groupId?: string, subgroupId?: string) => {

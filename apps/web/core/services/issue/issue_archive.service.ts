@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "@plane/constants";
-import type { TIssue, TIssueServiceType } from "@plane/types";
+import type { TIssue, TIssueServiceType, TIssuesResponse } from "@plane/types";
 import { EIssueServiceType } from "@plane/types";
 import { APIService } from "@/services/api.service";
 // types
@@ -13,16 +13,21 @@ export class IssueArchiveService extends APIService {
     this.serviceType = serviceType;
   }
 
-  async getArchivedIssues(workspaceSlug: string, projectId: string, queries?: any, config = {}): Promise<any> {
-    return this.get(
+  async getArchivedIssues(
+    workspaceSlug: string,
+    projectId: string,
+    queries?: Record<string, unknown>,
+    config = {}
+  ): Promise<TIssuesResponse> {
+    return this.get<TIssuesResponse>(
       `/api/workspaces/${workspaceSlug}/projects/${projectId}/archived-issues/`,
       {
         params: { ...queries },
       },
       config
     )
-      .then((response) => response?.data)
-      .catch((error) => {
+      .then((response): TIssuesResponse => response?.data as TIssuesResponse)
+      .catch((error: { response?: { data?: unknown } }) => {
         throw error?.response?.data;
       });
   }
@@ -35,16 +40,16 @@ export class IssueArchiveService extends APIService {
     archived_at: string;
   }> {
     return this.post(`/api/workspaces/${workspaceSlug}/projects/${projectId}/${this.serviceType}/${issueId}/archive/`)
-      .then((response) => response?.data)
-      .catch((error) => {
+      .then((response) => response?.data as { archived_at: string })
+      .catch((error: { response?: { data?: unknown } }) => {
         throw error?.response?.data;
       });
   }
 
-  async restoreIssue(workspaceSlug: string, projectId: string, issueId: string): Promise<any> {
+  async restoreIssue(workspaceSlug: string, projectId: string, issueId: string): Promise<Record<string, unknown>> {
     return this.delete(`/api/workspaces/${workspaceSlug}/projects/${projectId}/${this.serviceType}/${issueId}/archive/`)
-      .then((response) => response?.data)
-      .catch((error) => {
+      .then((response) => response?.data as Record<string, unknown>)
+      .catch((error: { response?: { data?: unknown } }) => {
         throw error?.response?.data;
       });
   }
@@ -53,13 +58,16 @@ export class IssueArchiveService extends APIService {
     workspaceSlug: string,
     projectId: string,
     issueId: string,
-    queries?: any
+    queries?: Record<string, unknown>
   ): Promise<TIssue> {
-    return this.get(`/api/workspaces/${workspaceSlug}/projects/${projectId}/${this.serviceType}/${issueId}/archive/`, {
-      params: queries,
-    })
-      .then((response) => response?.data)
-      .catch((error) => {
+    return this.get<TIssue>(
+      `/api/workspaces/${workspaceSlug}/projects/${projectId}/${this.serviceType}/${issueId}/archive/`,
+      {
+        params: queries,
+      }
+    )
+      .then((response) => response?.data as TIssue)
+      .catch((error: { response?: { data?: unknown } }) => {
         throw error?.response?.data;
       });
   }

@@ -135,7 +135,7 @@ export class CycleIssues extends BaseIssuesStore implements ICycleIssues {
     const cycleId = id ?? this.cycleId;
 
     if (projectId && cycleId) {
-      this.rootIssueStore.rootStore.cycle.fetchCycleDetails(workspaceSlug, projectId, cycleId);
+      void this.rootIssueStore.rootStore.cycle.fetchCycleDetails(workspaceSlug, projectId, cycleId);
     }
     // fetch cycle progress
     const isSidebarCollapsed = storage.get("cycle_sidebar_collapsed");
@@ -146,7 +146,7 @@ export class CycleIssues extends BaseIssuesStore implements ICycleIssues {
       isSidebarCollapsed &&
       JSON.parse(isSidebarCollapsed) === false
     ) {
-      this.rootIssueStore.rootStore.cycle.fetchActiveCycleProgressPro(workspaceSlug, projectId, cycleId);
+      void this.rootIssueStore.rootStore.cycle.fetchActiveCycleProgressPro(workspaceSlug, projectId, cycleId);
     }
   };
 
@@ -186,10 +186,11 @@ export class CycleIssues extends BaseIssuesStore implements ICycleIssues {
     isExistingPaginationOptions: boolean = false
   ) => {
     try {
-      // set loader and clear store
       runInAction(() => {
-        this.setLoader(loadType);
-        this.clear(!isExistingPaginationOptions); // clear while fetching from server.
+        if (loadType !== "background-refresh") {
+          this.setLoader(loadType);
+          this.clear(!isExistingPaginationOptions); // clear while fetching from server.
+        }
       });
 
       // get params from pagination options
@@ -203,8 +204,7 @@ export class CycleIssues extends BaseIssuesStore implements ICycleIssues {
       this.onfetchIssues(response, options, workspaceSlug, projectId, cycleId, !isExistingPaginationOptions);
       return response;
     } catch (error) {
-      // set loader to undefined once errored out
-      this.setLoader(undefined);
+      if (loadType !== "background-refresh") this.setLoader(undefined);
       throw error;
     }
   };
@@ -303,7 +303,7 @@ export class CycleIssues extends BaseIssuesStore implements ICycleIssues {
     payload: {
       new_cycle_id: string;
     }
-  ) => {
+  ): Promise<TIssue> => {
     // call API call to transfer issues
     const response = await this.cycleService.transferIssues(workspaceSlug, projectId, cycleId, payload);
     // call fetch issues
@@ -423,7 +423,7 @@ export class CycleIssues extends BaseIssuesStore implements ICycleIssues {
   };
 
   // Using aliased names as they cannot be overridden in other stores
-  archiveBulkIssues = this.bulkArchiveIssues;
-  updateIssue = this.issueUpdate;
-  archiveIssue = this.issueArchive;
+  archiveBulkIssues = this.bulkArchiveIssues.bind(this);
+  updateIssue = this.issueUpdate.bind(this);
+  archiveIssue = this.issueArchive.bind(this);
 }

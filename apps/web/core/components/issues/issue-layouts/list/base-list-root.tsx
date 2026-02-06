@@ -15,6 +15,7 @@ import { useUserPermissions } from "@/hooks/store/user";
 import { useGroupIssuesDragNDrop } from "@/hooks/use-group-dragndrop";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { useIssuesActions } from "@/hooks/use-issues-actions";
+import { useIssuesAutoRefresh } from "@/hooks/use-issues-auto-refresh";
 // components
 import { IssueLayoutHOC } from "../issue-layout-HOC";
 import { List } from "./default";
@@ -83,6 +84,50 @@ export const BaseListRoot = observer(function BaseListRoot(props: IBaseListRoot)
   useEffect(() => {
     void fetchIssues("init-loader", { canGroup: true, perPageCount: group_by ? 50 : 100 }, viewId);
   }, [fetchIssues, storeType, group_by, viewId]);
+
+  const refreshListIssues = useCallback(() => {
+    if (!issues || !workspaceSlug || !projectId) return;
+
+    const store = issues as {
+      lastLocalMutationAt?: number;
+      fetchIssuesWithExistingPagination?: (
+        ws: string,
+        proj: string,
+        loadType: string,
+        id?: string
+      ) => void | Promise<void>;
+      cycleId?: string;
+      moduleId?: string;
+    };
+    if (store.lastLocalMutationAt && Date.now() - store.lastLocalMutationAt < 20_000) return;
+
+    const fetchWithPagination = store.fetchIssuesWithExistingPagination;
+    if (typeof fetchWithPagination === "function") {
+      const ws = workspaceSlug.toString();
+      const proj = projectId.toString();
+
+      if (store.cycleId) {
+        void fetchWithPagination(ws, proj, "background-refresh", store.cycleId);
+        return;
+      }
+
+      if (store.moduleId) {
+        void fetchWithPagination(ws, proj, "background-refresh", store.moduleId);
+        return;
+      }
+
+      void fetchWithPagination(ws, proj, "background-refresh");
+      return;
+    }
+
+    // Fallback
+    void fetchIssues("background-refresh", { canGroup: true, perPageCount: group_by ? 50 : 100 }, viewId);
+  }, [issues, workspaceSlug, projectId, fetchIssues, group_by, viewId]);
+
+  useIssuesAutoRefresh({
+    refreshFn: refreshListIssues,
+    enabled: true,
+  });
 
   const groupedIssueIds = issues?.groupedIssueIds as TGroupedIssues | undefined;
   // auth

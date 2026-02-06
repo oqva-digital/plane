@@ -69,7 +69,7 @@ export class ProjectViewIssues extends BaseIssuesStore implements IProjectViewIs
     this.issueFilterStore = issueFilterStore;
   }
 
-  fetchParentStats = async () => {};
+  fetchParentStats = () => {};
 
   /** */
   updateParentStats = () => {};
@@ -91,10 +91,11 @@ export class ProjectViewIssues extends BaseIssuesStore implements IProjectViewIs
     isExistingPaginationOptions: boolean = false
   ) => {
     try {
-      // set loader and clear store
       runInAction(() => {
-        this.setLoader(loadType);
-        this.clear(!isExistingPaginationOptions); // clear while fetching from server.
+        if (loadType !== "background-refresh") {
+          this.setLoader(loadType);
+          this.clear(!isExistingPaginationOptions); // clear while fetching from server.
+        }
       });
 
       // get params from pagination options
@@ -108,8 +109,7 @@ export class ProjectViewIssues extends BaseIssuesStore implements IProjectViewIs
       this.onfetchIssues(response, options, workspaceSlug, projectId, viewId, !isExistingPaginationOptions);
       return response;
     } catch (error) {
-      // set loader to undefined if errored out
-      this.setLoader(undefined);
+      if (loadType !== "background-refresh") this.setLoader(undefined);
       throw error;
     }
   };
@@ -178,8 +178,8 @@ export class ProjectViewIssues extends BaseIssuesStore implements IProjectViewIs
   };
 
   // Using aliased names as they cannot be overridden in other stores
-  archiveBulkIssues = this.bulkArchiveIssues;
-  quickAddIssue = this.issueQuickAdd;
-  updateIssue = this.issueUpdate;
-  archiveIssue = this.issueArchive;
+  archiveBulkIssues = this.bulkArchiveIssues.bind(this);
+  quickAddIssue = this.issueQuickAdd.bind(this);
+  updateIssue = this.issueUpdate.bind(this);
+  archiveIssue = this.issueArchive.bind(this);
 }

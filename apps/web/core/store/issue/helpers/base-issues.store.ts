@@ -178,6 +178,8 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
   issuePaginationData: TIssuePaginationData = {};
 
   groupedIssueCount: TGroupedIssueCount = {};
+  /** Timestamp of last local mutation (edit/drag). Used to skip background-refresh and avoid overwriting in-progress edits. */
+  lastLocalMutationAt = 0;
   //
   paginationOptions: IssuePaginationOptions | undefined = undefined;
 
@@ -206,6 +208,7 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
       groupedIssueIds: observable,
       issuePaginationData: observable,
       groupedIssueCount: observable,
+      lastLocalMutationAt: observable,
 
       paginationOptions: observable,
       // computed
@@ -563,6 +566,7 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
       // Update the Respective Stores
       this.rootIssueStore.issues.updateIssue(issueId, data);
       this.updateIssueList({ ...issueBeforeUpdate, ...data } as TIssue, issueBeforeUpdate);
+      this.lastLocalMutationAt = Date.now();
 
       // Check if should Sync
       if (!shouldSync) return;
