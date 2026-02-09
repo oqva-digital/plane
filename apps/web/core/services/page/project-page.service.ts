@@ -161,4 +161,47 @@ export class ProjectPageService extends APIService {
       .then((response: AxiosResponse<void>) => response.data)
       .catch(throwResponseError);
   }
+
+  async bulkArchive(
+    workspaceSlug: string,
+    projectId: string,
+    pageIds: string[]
+  ): Promise<{
+    archived_count: number;
+    archived_at: string;
+  }> {
+    return this.post(`/api/workspaces/${workspaceSlug}/projects/${projectId}/pages/bulk-archive/`, {
+      page_ids: pageIds,
+    })
+      .then((response: AxiosResponse<{ archived_count: number; archived_at: string }>) => response.data)
+      .catch(throwResponseError);
+  }
+
+  async bulkUnarchive(
+    workspaceSlug: string,
+    projectId: string,
+    pageIds: string[]
+  ): Promise<{
+    unarchived_count: number;
+  }> {
+    return this.post(`/api/workspaces/${workspaceSlug}/projects/${projectId}/pages/bulk-unarchive/`, {
+      page_ids: pageIds,
+    })
+      .then((response: AxiosResponse<{ unarchived_count: number }>) => response.data)
+      .catch(throwResponseError);
+  }
+
+  async bulkDelete(
+    workspaceSlug: string,
+    projectId: string,
+    pageIds: string[]
+  ): Promise<{
+    deleted_count: number;
+  }> {
+    return this.post(`/api/workspaces/${workspaceSlug}/projects/${projectId}/pages/bulk-delete/`, {
+      page_ids: pageIds,
+    })
+      .then((response: AxiosResponse<{ deleted_count: number }>) => response.data)
+      .catch(throwResponseError);
+  }
 }

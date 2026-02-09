@@ -630,3 +630,207 @@ class PageDuplicateEndpoint(BaseAPIView):
         )
         serializer = PageDetailSerializer(page)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class PageBulkArchiveEndpoint(BaseAPIView):
+    permission_classes = [ProjectPagePermission]
+
+    def post(self, request, slug, project_id):
+        page_ids = request.data.get("page_ids", [])
+
+        if not page_ids or not isinstance(page_ids, list):
+            return Response(
+                {"error": "page_ids must be a non-empty list"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get all pages that the user has permission to archive
+        pages = Page.objects.filter(
+            pk__in=page_ids,
+            workspace__slug=slug,
+            projects__id=project_id,
+            project_pages__deleted_at__isnull=True,
+        ).distinct()
+
+        # Check permissions - only owner or admin can archive
+        unauthorized_pages = []
+        for page in pages:
+            is_admin = ProjectMember.objects.filter(
+                project_id=project_id,
+                member=request.user,
+                is_active=True,
+                role__lte=15
+            ).exists()
+
+            if not is_admin and request.user.id != page.owned_by_id:
+                unauthorized_pages.append(str(page.id))
+
+        if unauthorized_pages:
+            return Response(
+                {"error": "You don't have permission to archive some pages", "unauthorized_page_ids": unauthorized_pages},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Archive pages and their descendants
+        archived_at = datetime.now()
+        for page in pages:
+            # Remove from favorites
+            UserFavorite.objects.filter(
+                entity_type="page",
+                entity_identifier=page.id,
+                project_id=project_id,
+                workspace__slug=slug,
+            ).delete()
+
+            # Archive page and descendants
+            unarchive_archive_page_and_descendants(page.id, archived_at)
+
+        return Response(
+            {"archived_count": len(pages), "archived_at": str(archived_at)},
+            status=status.HTTP_200_OK
+        )
+
+
+class PageBulkUnarchiveEndpoint(BaseAPIView):
+    permission_classes = [ProjectPagePermission]
+
+    def post(self, request, slug, project_id):
+        page_ids = request.data.get("page_ids", [])
+
+        if not page_ids or not isinstance(page_ids, list):
+            return Response(
+                {"error": "page_ids must be a non-empty list"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get all pages that the user has permission to unarchive
+        pages = Page.objects.filter(
+            pk__in=page_ids,
+            workspace__slug=slug,
+            projects__id=project_id,
+            project_pages__deleted_at__isnull=True,
+            archived_at__isnull=False,
+        ).distinct()
+
+        # Check permissions - only owner or admin can unarchive
+        unauthorized_pages = []
+        for page in pages:
+            is_admin = ProjectMember.objects.filter(
+                project_id=project_id,
+                member=request.user,
+                is_active=True,
+                role__lte=15
+            ).exists()
+
+            if not is_admin and request.user.id != page.owned_by_id:
+                unauthorized_pages.append(str(page.id))
+
+        if unauthorized_pages:
+            return Response(
+                {"error": "You don't have permission to unarchive some pages", "unauthorized_page_ids": unauthorized_pages},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Unarchive pages and their descendants
+        for page in pages:
+            # If parent is archived, break hierarchy
+            if page.parent_id and page.parent.archived_at:
+                page.parent = None
+                page.save(update_fields=["parent"])
+
+            # Unarchive page and descendants
+            unarchive_archive_page_and_descendants(page.id, None)
+
+        return Response(
+            {"unarchived_count": len(pages)},
+            status=status.HTTP_200_OK
+        )
+
+
+class PageBulkDeleteEndpoint(BaseAPIView):
+    permission_classes = [ProjectPagePermission]
+
+    def post(self, request, slug, project_id):
+        page_ids = request.data.get("page_ids", [])
+
+        if not page_ids or not isinstance(page_ids, list):
+            return Response(
+                {"error": "page_ids must be a non-empty list"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get all pages that the user has permission to delete
+        pages = Page.objects.filter(
+            pk__in=page_ids,
+            workspace__slug=slug,
+            projects__id=project_id,
+            project_pages__deleted_at__isnull=True,
+        ).distinct()
+
+        # Check that all pages are archived
+        not_archived = []
+        unauthorized_pages = []
+
+        for page in pages:
+            if page.archived_at is None:
+                not_archived.append(str(page.id))
+                continue
+
+            # Check permissions - only owner or admin can delete
+            is_admin = ProjectMember.objects.filter(
+                workspace__slug=slug,
+                member=request.user,
+                role=20,
+                project_id=project_id,
+                is_active=True,
+            ).exists()
+
+            if page.owned_by_id != request.user.id and not is_admin:
+                unauthorized_pages.append(str(page.id))
+
+        if not_archived:
+            return Response(
+                {"error": "All pages must be archived before deleting", "not_archived_page_ids": not_archived},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if unauthorized_pages:
+            return Response(
+                {"error": "You don't have permission to delete some pages", "unauthorized_page_ids": unauthorized_pages},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Delete pages
+        deleted_count = 0
+        for page in pages:
+            # Remove parent from children
+            Page.objects.filter(
+                parent_id=page.id,
+                projects__id=project_id,
+                workspace__slug=slug,
+                project_pages__deleted_at__isnull=True,
+            ).update(parent=None)
+
+            # Delete favorites
+            UserFavorite.objects.filter(
+                project=project_id,
+                workspace__slug=slug,
+                entity_identifier=page.id,
+                entity_type="page",
+            ).delete()
+
+            # Delete recent visits
+            UserRecentVisit.objects.filter(
+                project_id=project_id,
+                workspace__slug=slug,
+                entity_identifier=page.id,
+                entity_name="page",
+            ).delete(soft=False)
+
+            page.delete()
+            deleted_count += 1
+
+        return Response(
+            {"deleted_count": deleted_count},
+            status=status.HTTP_200_OK
+        )

@@ -6,9 +6,11 @@ import { PageIcon } from "@plane/propel/icons";
 import { getPageName } from "@plane/utils";
 // components
 import { ListItem } from "@/components/core/list";
+import { MultipleSelectEntityAction } from "@/components/core/multiple-select/entity-select-action";
 import { BlockItemAction } from "@/components/pages/list/block-item-action";
 // hooks
 import { usePlatformOS } from "@/hooks/use-platform-os";
+import type { TSelectionHelper } from "@/hooks/use-multiple-select";
 // plane web hooks
 import type { EPageStoreType } from "@/plane-web/hooks/store";
 import { usePage } from "@/plane-web/hooks/store";
@@ -16,10 +18,12 @@ import { usePage } from "@/plane-web/hooks/store";
 type TPageListBlock = {
   pageId: string;
   storeType: EPageStoreType;
+  selectionHelpers?: TSelectionHelper;
+  groupId?: string;
 };
 
 export const PageListBlock = observer(function PageListBlock(props: TPageListBlock) {
-  const { pageId, storeType } = props;
+  const { pageId, storeType, selectionHelpers, groupId = "default" } = props;
   // refs
   const parentRef = useRef(null);
   // hooks
@@ -37,6 +41,13 @@ export const PageListBlock = observer(function PageListBlock(props: TPageListBlo
     <ListItem
       prependTitleElement={
         <>
+          {selectionHelpers && (
+            <MultipleSelectEntityAction
+              groupId={groupId}
+              id={pageId}
+              selectionHelpers={selectionHelpers}
+            />
+          )}
           {logo_props?.in_use ? (
             <Logo logo={logo_props} size={16} type="lucide" />
           ) : (

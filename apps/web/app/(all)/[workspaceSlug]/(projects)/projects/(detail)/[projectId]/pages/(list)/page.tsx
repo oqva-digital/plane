@@ -1,6 +1,7 @@
 import { observer } from "mobx-react";
 import { useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
+import { useEffect, useMemo, useRef } from "react";
 // plane imports
 import { EUserPermissionsLevel } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
@@ -12,14 +13,17 @@ import lightPagesAsset from "@/app/assets/empty-state/disabled-feature/pages-lig
 // components
 import { PageHead } from "@/components/core/page-title";
 import { DetailedEmptyState } from "@/components/empty-state/detailed-empty-state-root";
+import { PageBulkOperationsRoot } from "@/components/pages/bulk-operations";
 import { PagesListRoot } from "@/components/pages/list/root";
 import { PagesListView } from "@/components/pages/pages-list-view";
 // hooks
+import { useMultipleSelectStore } from "@/hooks/store/use-multiple-select-store";
 import { useProject } from "@/hooks/store/use-project";
 import { useUserPermissions } from "@/hooks/store/user";
 import { useAppRouter } from "@/hooks/use-app-router";
+import { useMultipleSelect } from "@/hooks/use-multiple-select";
 // plane web hooks
-import { EPageStoreType } from "@/plane-web/hooks/store";
+import { EPageStoreType, usePageStore } from "@/plane-web/hooks/store";
 import type { Route } from "./+types/page";
 
 const getPageType = (pageType?: string | null): TPageNavigationTabs => {
@@ -29,6 +33,8 @@ const getPageType = (pageType?: string | null): TPageNavigationTabs => {
 };
 
 function ProjectPagesPage({ params }: Route.ComponentProps) {
+  // refs
+  const containerRef = useRef<HTMLDivElement>(null);
   // router
   const router = useAppRouter();
   const searchParams = useSearchParams();
@@ -41,12 +47,35 @@ function ProjectPagesPage({ params }: Route.ComponentProps) {
   // store hooks
   const { getProjectById, currentProjectDetails } = useProject();
   const { allowPermissions } = useUserPermissions();
+  const { getCurrentProjectFilteredPageIdsByTab } = usePageStore(EPageStoreType.PROJECT);
+  const { clearSelection } = useMultipleSelectStore();
   // derived values
   const project = getProjectById(projectId);
   const pageTitle = project?.name ? `${project?.name} - Pages` : undefined;
   const canPerformEmptyStateActions = allowPermissions([EUserProjectRoles.ADMIN], EUserPermissionsLevel.PROJECT);
   const resolvedPath = resolvedTheme === "light" ? lightPagesAsset : darkPagesAsset;
   const pageType = getPageType(type);
+  const filteredPageIds = getCurrentProjectFilteredPageIdsByTab(pageType);
+
+  // Create entities object for multi-select
+  const entities = useMemo(
+    () => ({
+      default: filteredPageIds || [],
+    }),
+    [filteredPageIds]
+  );
+
+  // Multi-select hook
+  const selectionHelpers = useMultipleSelect({
+    containerRef,
+    entities,
+    disabled: false,
+  });
+
+  // Clear selection when switching tabs
+  useEffect(() => {
+    clearSelection();
+  }, [pageType, clearSelection]);
 
   // No access to cycle
   if (currentProjectDetails?.page_view === false)
@@ -69,14 +98,24 @@ function ProjectPagesPage({ params }: Route.ComponentProps) {
   return (
     <>
       <PageHead title={pageTitle} />
-      <PagesListView
-        pageType={pageType}
-        projectId={projectId}
-        storeType={EPageStoreType.PROJECT}
-        workspaceSlug={workspaceSlug}
-      >
-        <PagesListRoot pageType={pageType} storeType={EPageStoreType.PROJECT} />
-      </PagesListView>
+      <div ref={containerRef} className="h-full w-full overflow-hidden">
+        <PagesListView
+          pageType={pageType}
+          projectId={projectId}
+          storeType={EPageStoreType.PROJECT}
+          workspaceSlug={workspaceSlug}
+        >
+          <PageBulkOperationsRoot
+            selectionHelpers={selectionHelpers}
+            pageType={pageType}
+          />
+          <PagesListRoot
+            pageType={pageType}
+            storeType={EPageStoreType.PROJECT}
+            selectionHelpers={selectionHelpers}
+          />
+        </PagesListView>
+      </div>
     </>
   );
 }

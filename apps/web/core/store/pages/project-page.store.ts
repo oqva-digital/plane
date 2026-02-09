@@ -59,6 +59,9 @@ export interface IProjectPageStore {
   createPage: (pageData: Partial<TPage>) => Promise<TPage | undefined>;
   removePage: (params: { pageId: string; shouldSync?: boolean }) => Promise<void>;
   movePage: (workspaceSlug: string, projectId: string, pageId: string, newProjectId: string) => Promise<void>;
+  bulkArchivePages: (workspaceSlug: string, projectId: string, pageIds: string[]) => Promise<void>;
+  bulkUnarchivePages: (workspaceSlug: string, projectId: string, pageIds: string[]) => Promise<void>;
+  bulkDeletePages: (workspaceSlug: string, projectId: string, pageIds: string[]) => Promise<void>;
 }
 
 export class ProjectPageStore implements IProjectPageStore {
@@ -94,6 +97,9 @@ export class ProjectPageStore implements IProjectPageStore {
       createPage: action,
       removePage: action,
       movePage: action,
+      bulkArchivePages: action,
+      bulkUnarchivePages: action,
+      bulkDeletePages: action,
     });
     this.rootStore = store;
     // service
@@ -355,6 +361,75 @@ export class ProjectPageStore implements IProjectPageStore {
       });
     } catch (error) {
       console.error("Unable to move page", error);
+      throw error;
+    }
+  };
+
+  /**
+   * @description bulk archive pages
+   * @param {string} workspaceSlug
+   * @param {string} projectId
+   * @param {string[]} pageIds
+   */
+  bulkArchivePages = async (workspaceSlug: string, projectId: string, pageIds: string[]) => {
+    try {
+      const response = await this.service.bulkArchive(workspaceSlug, projectId, pageIds);
+      runInAction(() => {
+        pageIds.forEach((pageId) => {
+          const page = this.getPageById(pageId);
+          if (page) {
+            page.mutateProperties({ archived_at: response.archived_at }, false);
+          }
+        });
+      });
+    } catch (error) {
+      console.error("Unable to bulk archive pages", error);
+      throw error;
+    }
+  };
+
+  /**
+   * @description bulk unarchive pages
+   * @param {string} workspaceSlug
+   * @param {string} projectId
+   * @param {string[]} pageIds
+   */
+  bulkUnarchivePages = async (workspaceSlug: string, projectId: string, pageIds: string[]) => {
+    try {
+      await this.service.bulkUnarchive(workspaceSlug, projectId, pageIds);
+      runInAction(() => {
+        pageIds.forEach((pageId) => {
+          const page = this.getPageById(pageId);
+          if (page) {
+            page.mutateProperties({ archived_at: null }, false);
+          }
+        });
+      });
+    } catch (error) {
+      console.error("Unable to bulk unarchive pages", error);
+      throw error;
+    }
+  };
+
+  /**
+   * @description bulk delete pages
+   * @param {string} workspaceSlug
+   * @param {string} projectId
+   * @param {string[]} pageIds
+   */
+  bulkDeletePages = async (workspaceSlug: string, projectId: string, pageIds: string[]) => {
+    try {
+      await this.service.bulkDelete(workspaceSlug, projectId, pageIds);
+      runInAction(() => {
+        pageIds.forEach((pageId) => {
+          unset(this.data, [pageId]);
+          if (this.rootStore.favorite.entityMap[pageId]) {
+            this.rootStore.favorite.removeFavoriteFromStore(pageId);
+          }
+        });
+      });
+    } catch (error) {
+      console.error("Unable to bulk delete pages", error);
       throw error;
     }
   };
