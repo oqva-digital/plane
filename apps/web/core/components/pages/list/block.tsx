@@ -4,6 +4,8 @@ import { Logo } from "@plane/propel/emoji-icon-picker";
 import { PageIcon } from "@plane/propel/icons";
 // plane imports
 import { getPageName } from "@plane/utils";
+// ui
+import { Checkbox } from "@plane/ui";
 // components
 import { ListItem } from "@/components/core/list";
 import { BlockItemAction } from "@/components/pages/list/block-item-action";
@@ -16,10 +18,12 @@ import { usePage } from "@/plane-web/hooks/store";
 type TPageListBlock = {
   pageId: string;
   storeType: EPageStoreType;
+  isSelected: boolean;
+  onToggleSelection: (pageId: string) => void;
 };
 
 export const PageListBlock = observer(function PageListBlock(props: TPageListBlock) {
-  const { pageId, storeType } = props;
+  const { pageId, storeType, isSelected, onToggleSelection } = props;
   // refs
   const parentRef = useRef(null);
   // hooks
@@ -32,11 +36,26 @@ export const PageListBlock = observer(function PageListBlock(props: TPageListBlo
   if (!page) return null;
   // derived values
   const { name, logo_props, getRedirectionLink } = page;
+  const canSelectPage = page.canCurrentUserArchivePage || page.canCurrentUserDeletePage;
 
   return (
     <ListItem
       prependTitleElement={
         <>
+          {canSelectPage && (
+            <Checkbox
+              containerClassName="mr-2 shrink-0"
+              className="!outline-none size-3.5"
+              iconClassName="size-3"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleSelection(pageId);
+              }}
+              checked={isSelected}
+              readOnly
+            />
+          )}
           {logo_props?.in_use ? (
             <Logo logo={logo_props} size={16} type="lucide" />
           ) : (
