@@ -86,6 +86,12 @@ DEFAULT_STATES = [
         "sequence": 115000,
         "group": StateGroup.COMPLETED.value,
     },
+    {
+        "name": "Merge",
+        "color": "#46A758",
+        "sequence": 125000,
+        "group": StateGroup.COMPLETED.value,
+    },
 ]
 
 

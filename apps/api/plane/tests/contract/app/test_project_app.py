@@ -87,7 +87,7 @@ class TestProjectAPIPost(TestProjectBase):
 
         # Verify default states were created (original + review workflow; Triage excluded by default manager)
         states = State.objects.filter(project=project)
-        assert states.count() == 10
+        assert states.count() == 11
         expected_states = [
             "Backlog",
             "Blocked",
@@ -99,6 +99,7 @@ class TestProjectAPIPost(TestProjectBase):
             "In Review",
             "Needs Revision",
             "Review Approved",
+            "Merge",
         ]
         state_names = list(states.values_list("name", flat=True))
         assert set(state_names) == set(expected_states)
